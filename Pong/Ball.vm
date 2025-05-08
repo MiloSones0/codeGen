@@ -1,0 +1,12 @@
+function Ball.new 0
+push constant 15
+call Memory.alloc 1
+function Ball.dispose 0
+function Ball.show 0
+function Ball.hide 0
+function Ball.draw 0
+function Ball.getLeft 0
+function Ball.getRight 0
+function Ball.setDestination 3
+function Ball.move 0
+function Ball.bounce 5

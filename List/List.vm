@@ -1,0 +1,7 @@
+function List.new 0
+push constant 2
+call Memory.alloc 1
+function List.getData 0
+function List.getNext 0
+function List.print 1
+function List.dispose 0

@@ -1,0 +1,10 @@
+function Fraction.new 0
+push constant 2
+call Memory.alloc 1
+function Fraction.reduce 1
+function Fraction.getNumerator 0
+function Fraction.getDenominator 0
+function Fraction.plus 1
+function Fraction.dispose 0
+function Fraction.print 0
+function Fraction.gcd 1

@@ -1,0 +1,12 @@
+function Bat.new 0
+push constant 5
+call Memory.alloc 1
+function Bat.dispose 0
+function Bat.show 0
+function Bat.hide 0
+function Bat.draw 0
+function Bat.setDirection 0
+function Bat.getLeft 0
+function Bat.getRight 0
+function Bat.setWidth 0
+function Bat.move 0

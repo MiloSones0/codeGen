@@ -1,0 +1,8 @@
+function PongGame.new 0
+push constant 7
+call Memory.alloc 1
+function PongGame.dispose 0
+function PongGame.newInstance 0
+function PongGame.getInstance 0
+function PongGame.run 1
+function PongGame.moveBall 5
