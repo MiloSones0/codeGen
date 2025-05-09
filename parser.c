@@ -397,7 +397,7 @@ ParserInfo subroutineDeclar()
 	{
 		if (pass == 1)
 		{
-			startSubroutine(manager, t.lx);
+			startSubroutine(manager, t.lx, type_var, kind_var);
 			int i = manager->currentClass->subroutineCount - 1;
 			manager->currentClass->subroutines[i].kind = kind_var;
 			manager->currentClass->subroutines[i].type = type_var;
@@ -413,6 +413,7 @@ ParserInfo subroutineDeclar()
 			{
 				writePush("constant", manager->currentClass->fieldCount);
 				writeCall("Memory", "alloc", 1);
+				writePop("pointer", 0);
 			}
 		}
 	}
@@ -825,7 +826,7 @@ ParserInfo varDeclarStatement()
 // letStatemnt → let identifier [ [ expression ] ] = expression ;
 ParserInfo letStatement()
 {
-	int scopeLevel = 0;
+	int scopeLevel = -1;
 	char className[128];
 	Symbol *symbol;
 	Scope *scope;
@@ -851,7 +852,7 @@ ParserInfo letStatement()
 
 	if (t.tp == ID)
 	{
-		if (pass == 2)
+		if (pass >= 2)
 		{
 			// Identifier needs to be in symbol table either in class or subroutine
 			if (manager->currentSubroutine != NULL)
@@ -865,19 +866,22 @@ ParserInfo letStatement()
 				}
 				else if (symbol = lookupSymbolInClass(manager, manager->currentClass->name, t.lx))
 				{
+					// Is declared by field or static
 					// printf("Symbol %s in class %s\n", t.lx, manager->currentClass->name);
 					// need to find type of symbol
 					// printf("1 symbol %s has type %s\n", t.lx, symbol->className);
 					scopeLevel = 1;
 				}
-				else if (scope = lookupClass(manager, t.lx))
-				{
-					// printf("Symbol %s is class %s\n", t.lx, manager->currentClass->name);
-					scopeLevel = 0;
-				}
+				// else if (scope = lookupClass(manager, t.lx))
+				// {
+				// 	// is declared by class
+				// 	// printf("Symbol %s is class %s\n", t.lx, manager->currentClass->name);
+				// 	printf("Never runs 2zn");
+				// 	scopeLevel = 0;
+				// }
 				else
 				{
-					// printf("identifier %s not found\n", t.lx);
+					printf("\n\nidentifier %s not found\n\n", t.lx);
 					pi.er = undecIdentifier;
 					pi.tk = t;
 					return pi;
@@ -942,6 +946,19 @@ ParserInfo letStatement()
 	if (pi.er != none)
 	{
 		return pi;
+	}
+
+	if (pass == 3)
+	{
+		printf("%s(%s), type: %d ,kind: %d\n", symbol->lexeme, symbol->className, symbol->type, symbol->kind);
+		if (symbol->kind == KIND_LOCAL)
+		{
+			writePop("local", symbol->address);
+		}
+		else if (symbol->kind == KIND_FIELD)
+		{
+			writePop("this", symbol->address);
+		}
 	}
 	// check for semicolon
 	t = GetNextToken();
@@ -1252,22 +1269,32 @@ ParserInfo doStatement()
 // subroutineCall → identifier [ . identifier ] ( expressionList )
 ParserInfo subroutineCall()
 {
-	int scopeLevel = 0;
+	int scopeLevel = -1;
 	char className[128];
+	int secondIdentifier = 0;
 	Symbol *symbol;
+	Symbol *secondSymbol;
 	Scope *scope;
+	Token token_1 = {0};
+	Token token_2 = {0};
 	ParserInfo pi = {0};
-	Token t = GetNextToken();
+	Token t = token_1 = GetNextToken();
 	if (t.ec)
 		return (ParserInfo){lexerErr, t};
 	if (t.tp == ID)
 	{
-		if (pass == 2)
+		if (pass >= 2)
 		{
-			// Identifier can be in 3 places
-			// 1 A class name
-			// In current class field or static var
-			// In current subroutine
+			// if there is not a . then id is a method in that class
+			// this will be the instance of the class so a (local var, or field, or argument)
+
+			// if there is a dot and the id is a class name then the subroutine is a function
+
+			// if the is a dot and the id is a field/ or local or argument
+			// for proper scoping check to see if it is a argument
+			// then check local vars
+			// then check fields
+			// the check class names
 			if (manager->currentSubroutine != NULL)
 			{
 				if (symbol = lookupSymbolInSubroutine(manager->currentSubroutine, t.lx))
@@ -1291,8 +1318,8 @@ ParserInfo subroutineCall()
 				}
 				else
 				{
-					// printf("identifier %s not found\n", t.lx);
-					// printf("symbol Class name: %s\n", symbol->className);
+					printf("identifier %s not found\n", t.lx);
+					printf("symbol Class name: %s\n", symbol->className);
 					pi.er = undecIdentifier;
 					pi.tk = t;
 					return pi;
@@ -1313,10 +1340,11 @@ ParserInfo subroutineCall()
 		return (ParserInfo){lexerErr, t};
 	if (t.tp == SYMBOL && !strcmp(t.lx, "."))
 	{
+		secondIdentifier = 1;
 		t = GetNextToken();
 		if (t.ec)
 			return (ParserInfo){lexerErr, t}; // eat the .
-		t = GetNextToken();
+		t = token_2 = GetNextToken();
 		if (t.ec)
 			return (ParserInfo){lexerErr, t}; // get next token
 		if (t.tp != ID)
@@ -1325,14 +1353,15 @@ ParserInfo subroutineCall()
 			pi.tk = t;
 			return pi;
 		}
-		if (pass == 2)
+		if (pass >= 2)
 		{
+
 			switch (scopeLevel)
 			{
 			case 0:
-				if (lookupSymbolInClass(manager, scope->name, t.lx) == NULL)
+				if (!(secondSymbol = lookupSymbolInClass(manager, scope->name, t.lx)))
 				{
-					// printf("symbol Class name: %s\n", symbol->className);
+					printf("symbol Class name: %s\n", symbol->className);
 					pi.er = undecIdentifier;
 					pi.tk = t;
 					return pi;
@@ -1340,8 +1369,8 @@ ParserInfo subroutineCall()
 				break;
 			case 1:
 			case 2:
-				// printf("symbol Class name: %s\n", symbol->className);
-				if (lookupSymbolInClass(manager, symbol->className, t.lx) == NULL)
+				// printf("symbol Class name: (%s) symbol lexeme: (%s), token lexeme: (%s) ScopeLevel %d\n", symbol->className, symbol->lexeme, t.lx, scopeLevel);
+				if (!(secondSymbol = lookupSymbolInClass(manager, symbol->className, t.lx)))
 				{
 					pi.er = undecIdentifier;
 					pi.tk = t;
@@ -1387,6 +1416,91 @@ ParserInfo subroutineCall()
 		pi.tk = t;
 		return pi;
 	}
+
+	if (pass == 3)
+	{
+
+		switch (scopeLevel)
+		{
+		case 0:
+			if (secondIdentifier)
+			{
+				Scope *subroutineScope = getSubroutineScope(manager, scope->name, secondSymbol->lexeme);
+				// printf("%s.%s(", scope->name, secondSymbol->lexeme);
+				// for (int i = 0; i < subroutineScope->argumentCount; i++)
+				// {
+				// 	printf("%s, ", subroutineScope->arguments[i].lexeme);
+				// }
+				// printf(")\n");
+				// printf("%s.%s() tk\n", token_1.lx, token_2.lx);
+				writeCall(scope->name, secondSymbol->lexeme, subroutineScope->argumentCount);
+				Symbol *subroutineSymbol = lookupSymbolInClass(manager, scope->name, secondSymbol->lexeme);
+				if (subroutineSymbol->type == TYPE_VOID)
+				{
+					writePop("temp", 0);
+				}
+			}
+			break;
+		case 1:
+		case 2:
+			if (secondIdentifier)
+			{
+				Scope *subroutineScope = getSubroutineScope(manager, symbol->className, secondSymbol->lexeme);
+				// printf("%s.%s(", symbol->lexeme, secondSymbol->lexeme);
+				// for (int i = 0; i < subroutineScope->argumentCount; i++)
+				// {
+				// 	printf("%s, ", subroutineScope->arguments[i].lexeme);
+				// }
+				// printf(")\n");
+
+				// printf("%s(%s).%s() sym\n", symbol->lexeme, symbol->className, secondSymbol->lexeme);
+				// printf("%s.%s() tk\n", token_1.lx, token_2.lx);
+
+				writeCall(symbol->className, secondSymbol->lexeme, subroutineScope->argumentCount);
+				Symbol *subroutineSymbol = lookupSymbolInClass(manager, symbol->className, secondSymbol->lexeme);
+				if (subroutineSymbol->type == TYPE_VOID)
+				{
+					writePop("temp", 0);
+				}
+			}
+			else
+			{
+				// printf("2\n");
+				// printf("%s() sym\n", symbol->lexeme);
+				// printf("%s() tk\n", token_1.lx);
+
+				// COME BACK AND ADD THIS IN VERY IMPORTANT!!!!!
+				// COME BACK AND ADD THIS IN VERY IMPORTANT!!!!!
+				// COME BACK AND ADD THIS IN VERY IMPORTANT!!!!!
+				// COME BACK AND ADD THIS IN VERY IMPORTANT!!!!!
+				// COME BACK AND ADD THIS IN VERY IMPORTANT!!!!!
+			}
+			break;
+		default:
+			printf("something gone wrong\n");
+			break;
+		}
+
+		// if (strcmp(token_2.lx, ""))
+		// {
+
+		// 	if (scopeLevel != 0)
+		// 	{
+		// 		// if token 1 is not a class name
+		// 		// symbol will be set
+		// 		printf("%s(%s).%s()", symbol->lexeme, symbol->className, token_2.lx);
+		// 	}
+		// 	else
+		// 	{
+		// 		printf("token_1 %s token_2 %s\n", token_1.lx, token_2.lx);
+		// 	}
+		// }
+		// else
+		// {
+		// 	printf("token_1 %s\n", token_1.lx);
+		// }
+	}
+
 	pi.tk = t;
 	return pi;
 }
@@ -1477,6 +1591,17 @@ ParserInfo returnStatement()
 		pi.tk = t;
 		return pi;
 	}
+
+	if (pass == 3)
+	{
+		Symbol *symbol = findSubroutineSymbol(manager, manager->currentSubroutine->name);
+		if (symbol->type == TYPE_VOID)
+		{
+			writePush("constant", 0);
+		}
+		writeReturn();
+	}
+
 	pi.tk = t;
 	return pi;
 }
@@ -1486,6 +1611,7 @@ ParserInfo returnStatement()
 // expression → relationalExpression { ( & | | ) relationalExpression }
 ParserInfo expression()
 {
+	char operator[100] = {0};
 	ParserInfo pi = {0};
 	pi = relationalExpression();
 	if (pi.er != none)
@@ -1498,33 +1624,36 @@ ParserInfo expression()
 		return (ParserInfo){lexerErr, t};
 	while (t.tp == SYMBOL && (!strcmp(t.lx, "&") || !strcmp(t.lx, "|")))
 	{
+		t = GetNextToken();
+		if (t.ec)
+			return (ParserInfo){lexerErr, t};
 		if (t.tp == SYMBOL && !strcmp(t.lx, "&"))
 		{
-			t = GetNextToken();
-			if (t.ec)
-				return (ParserInfo){lexerErr, t};
-			// eat the &
-			pi = relationalExpression();
-			if (pi.er != none)
-			{
-				return pi;
-			}
+			strcpy(operator, "and");
 		}
 		else if (t.tp == SYMBOL && !strcmp(t.lx, "|"))
 		{
-			t = GetNextToken();
-			if (t.ec)
-				return (ParserInfo){lexerErr, t};
-			// eat the |
-			pi = relationalExpression();
-			if (pi.er != none)
-			{
-				return pi;
-			}
+			strcpy(operator, "or");
+		}
+		else
+		{
+			pi.tk = t;
+			pi.er = syntaxError;
+			return pi;
+		}
+		// Arithmetic Expression
+		pi = ArithmeticExpression();
+		if (pi.er != none)
+		{
+			return pi;
 		}
 		t = PeekNextToken();
 		if (t.ec)
 			return (ParserInfo){lexerErr, t};
+		if (pass == 3 && operator[0] != 0)
+		{
+			writeArithmetic(operator);
+		}
 	}
 	pi.tk = t;
 	return pi;
@@ -1533,7 +1662,7 @@ ParserInfo expression()
 // relationalExpression → ArithmeticExpression { ( = | > | < ) ArithmeticExpression }
 ParserInfo relationalExpression()
 {
-
+	char operator[100] = {0};
 	ParserInfo pi = {0};
 	pi = ArithmeticExpression();
 	if (pi.er != none)
@@ -1551,15 +1680,15 @@ ParserInfo relationalExpression()
 			return (ParserInfo){lexerErr, t};
 		if (t.tp == SYMBOL && !strcmp(t.lx, "="))
 		{
-			;
+			strcpy(operator, "eq");
 		}
 		else if (t.tp == SYMBOL && !strcmp(t.lx, "<"))
 		{
-			;
+			strcpy(operator, "lt");
 		}
 		else if (t.tp == SYMBOL && !strcmp(t.lx, ">"))
 		{
-			;
+			strcpy(operator, "gt");
 		}
 		else
 		{
@@ -1576,6 +1705,10 @@ ParserInfo relationalExpression()
 		t = PeekNextToken();
 		if (t.ec)
 			return (ParserInfo){lexerErr, t};
+		if (pass == 3 && operator[0] != 0)
+		{
+			writeArithmetic(operator);
+		}
 	}
 	pi.tk = t;
 	return pi;
@@ -1584,7 +1717,7 @@ ParserInfo relationalExpression()
 // ArithmeticExpression → term { ( + | - ) term }
 ParserInfo ArithmeticExpression()
 {
-
+	char operator[100] = {0};
 	ParserInfo pi = {0};
 	pi = term();
 	if (pi.er != none)
@@ -1601,11 +1734,11 @@ ParserInfo ArithmeticExpression()
 			return (ParserInfo){lexerErr, t};
 		if (t.tp == SYMBOL && !strcmp(t.lx, "+"))
 		{
-			;
+			strcpy(operator, "add");
 		}
 		else if (t.tp == SYMBOL && !strcmp(t.lx, "-"))
 		{
-			;
+			strcpy(operator, "sub");
 		}
 		pi = term();
 		if (pi.er != none)
@@ -1615,6 +1748,10 @@ ParserInfo ArithmeticExpression()
 		t = PeekNextToken();
 		if (t.ec)
 			return (ParserInfo){lexerErr, t};
+		if (pass == 3 && operator[0] != 0)
+		{
+			writeArithmetic(operator);
+		}
 	}
 	pi.tk = t;
 	return pi;
@@ -1626,6 +1763,7 @@ ParserInfo term()
 
 	ParserInfo pi = {0};
 	pi = factor();
+	char operation[100];
 	if (pi.er != none)
 	{
 		return pi;
@@ -1640,11 +1778,11 @@ ParserInfo term()
 			return (ParserInfo){lexerErr, t};
 		if (t.tp == SYMBOL && !strcmp(t.lx, "*"))
 		{
-			;
+			strcpy(operation, "multiply");
 		}
 		else if (t.tp == SYMBOL && !strcmp(t.lx, "/"))
 		{
-			;
+			strcpy(operation, "divide");
 		}
 		pi = factor();
 		if (pi.er != none)
@@ -1654,6 +1792,10 @@ ParserInfo term()
 		t = PeekNextToken();
 		if (t.ec)
 			return (ParserInfo){lexerErr, t};
+		if (pass == 3 && operation[0] != 0)
+		{
+			writeCall("Math", operation, 2);
+		}
 	}
 	pi.tk = t;
 	return pi;
@@ -1662,7 +1804,7 @@ ParserInfo term()
 // factor → ( - | ~ | ε ) operand
 ParserInfo factor()
 {
-
+	char operator[100] = {0};
 	ParserInfo pi = {0};
 	Token t = PeekNextToken();
 	if (t.ec)
@@ -1672,7 +1814,7 @@ ParserInfo factor()
 		t = GetNextToken();
 		if (t.ec)
 			return (ParserInfo){lexerErr, t};
-		// eat the -
+		strcpy(operator, "neg"); // eat the -
 	}
 	else if (t.tp == SYMBOL && !strcmp(t.lx, "~"))
 	{
@@ -1680,11 +1822,16 @@ ParserInfo factor()
 		if (t.ec)
 			return (ParserInfo){lexerErr, t};
 		// eat the ~
+		strcpy(operator, "not");
 	}
 	pi = operand();
 	if (pi.er != none)
 	{
 		return pi;
+	}
+	if (pass == 3 && operator[0] != 0)
+	{
+		writeArithmetic(operator);
 	}
 	pi.tk = t;
 	return pi;
@@ -1692,12 +1839,17 @@ ParserInfo factor()
 
 // operand → integerConstant | identifier [.identifier ] [ [ expression ] ] | (expressionList) | stringLiteral | true | false | null | this
 ParserInfo operand()
+
 {
 	ParserInfo pi = {0};
 	int scopeLevel = 0;
 	char className[128];
-	Symbol *symbol;
-	Scope *scope;
+	int secondIdentifier = 0;
+	Symbol *symbol = NULL;
+	Symbol *secondSymbol = NULL;
+	Scope *scope = NULL;
+	Token token_1 = {0};
+	Token token_2 = {0};
 	Token t = PeekNextToken();
 	if (t.ec)
 		return (ParserInfo){lexerErr, t};
@@ -1707,41 +1859,41 @@ ParserInfo operand()
 		t = GetNextToken();
 		if (t.ec)
 			return (ParserInfo){lexerErr, t}; // consume integer
+		if (pass == 3)
+		{
+			writePush("constant", atoi(t.lx));
+		}
 	}
 	else if (t.tp == ID)
 	{
-		t = GetNextToken();
+		t = token_1 = GetNextToken();
 		if (t.ec)
 			return (ParserInfo){lexerErr, t}; // consume identifier
-		if (pass == 2)
+		if (pass >= 2)
 		{
 			// Check if is a class or var identifier
-
 			if (manager->currentSubroutine != NULL)
 			{
-				if (symbol = lookupSymbolInSubroutine(manager->currentSubroutine, t.lx))
+				if ((symbol = lookupSymbolInSubroutine(manager->currentSubroutine, t.lx)))
 				{
-					// It will be defined by a varDeclarStatement
 					// printf("Symbol %s in subroutine %s\n", t.lx, manager->currentSubroutine->name);
 					// printf("2 symbol %s has type %s\n", t.lx, symbol->className);
 					scopeLevel = 2;
 				}
-				else if (symbol = lookupSymbolInClass(manager, manager->currentClass->name, t.lx))
+				else if ((symbol = lookupSymbolInClass(manager, manager->currentClass->name, t.lx)))
 				{
 					// printf("Symbol %s in class %s\n", t.lx, manager->currentClass->name);
-					// need to find type of symbol
 					// printf("1 symbol %s has type %s\n", t.lx, symbol->className);
 					scopeLevel = 1;
 				}
-				else if (scope = lookupClass(manager, t.lx))
+				else if ((scope = lookupClass(manager, t.lx)))
 				{
-					// printf("Symbol %s is class %s\n", t.lx, manager->currentClass->name);
+					// printf("Symbol %s is class %s line num: %d\n", t.lx, scope->name, t.ln);
 					scopeLevel = 0;
 				}
 				else
 				{
 					printf("identifier %s not found\n", t.lx);
-					printf("symbol Class name: %s\n", symbol->className);
 					pi.er = undecIdentifier;
 					pi.tk = t;
 					return pi;
@@ -1755,10 +1907,11 @@ ParserInfo operand()
 			return (ParserInfo){lexerErr, t};
 		if (t.tp == SYMBOL && !strcmp(t.lx, "."))
 		{
+			secondIdentifier = 1;
 			t = GetNextToken();
 			if (t.ec)
 				return (ParserInfo){lexerErr, t}; // consume .
-			t = GetNextToken();
+			t = token_2 = GetNextToken();
 			if (t.ec)
 				return (ParserInfo){lexerErr, t}; // get next token
 			if (t.tp != ID)
@@ -1767,33 +1920,35 @@ ParserInfo operand()
 				pi.tk = t;
 				return pi;
 			}
-			if (pass == 2)
+			if (pass >= 2)
 			{
+				// printf("scopeLevel: %d\n", scopeLevel);
 				switch (scopeLevel)
 				{
-				case 0:
-					if (lookupSymbolInClass(manager, scope->name, t.lx) == NULL)
+				case 0: // Class name
+					secondSymbol = lookupSymbolInClass(manager, scope->name, t.lx);
+					if (!secondSymbol)
 					{
-						printf("identifier %s not found\n", t.lx);
-						printf("symbol Class name: %s\n", symbol->className);
+						printf("identifier %s not found in class %s\n", t.lx, scope->name);
+
 						pi.er = undecIdentifier;
 						pi.tk = t;
 						return pi;
 					}
 					break;
-				case 1:
-				case 2:
-					if (lookupSymbolInClass(manager, symbol->className, t.lx) == NULL)
+				case 1: // Class field
+				case 2: // Subroutine var
+					secondSymbol = lookupSymbolInClass(manager, symbol->className, t.lx);
+					if (!secondSymbol)
 					{
-						printf("identifier %s not found\n", t.lx);
-						printf("symbol Class name: %s\n", symbol->className);
+						printf("identifier %s not found in class %s\n", t.lx, symbol->className);
 						pi.er = undecIdentifier;
 						pi.tk = t;
 						return pi;
 					}
 					break;
 				default:
-					printf("Error\n");
+					printf("Error: Invalid scope level\n");
 					break;
 				}
 			}
@@ -1848,13 +2003,93 @@ ParserInfo operand()
 				return pi;
 			}
 		}
+		if (pass == 3)
+		{
+
+			switch (scopeLevel)
+			{
+			case 0:
+				if (secondIdentifier)
+				{
+					Scope *subroutineScope = getSubroutineScope(manager, scope->name, secondSymbol->lexeme);
+					// printf("%s.%s(", scope->name, secondSymbol->lexeme);
+					// for (int i = 0; i < subroutineScope->argumentCount; i++)
+					// {
+					// 	printf("%s, ", subroutineScope->arguments[i].lexeme);
+					// }
+					// printf(")\n");
+					// printf("%s.%s() tk\n", token_1.lx, token_2.lx);
+					writeCall(scope->name, secondSymbol->lexeme, subroutineScope->argumentCount);
+					Symbol *subroutineSymbol = lookupSymbolInClass(manager, scope->name, secondSymbol->lexeme);
+					if (subroutineSymbol->type == TYPE_VOID)
+					{
+						writePop("temp", 0);
+					}
+				}
+				break;
+			case 1:
+			case 2:
+				if (secondIdentifier)
+				{
+					Scope *subroutineScope = getSubroutineScope(manager, symbol->className, secondSymbol->lexeme);
+					// printf("%s.%s(", symbol->lexeme, secondSymbol->lexeme);
+					// for (int i = 0; i < subroutineScope->argumentCount; i++)
+					// {
+					// 	printf("%s, ", subroutineScope->arguments[i].lexeme);
+					// }
+					// printf(")\n");
+
+					// printf("%s(%s).%s() sym\n", symbol->lexeme, symbol->className, secondSymbol->lexeme);
+					// printf("%s.%s() tk\n", token_1.lx, token_2.lx);
+
+					writeCall(symbol->className, secondSymbol->lexeme, subroutineScope->argumentCount);
+					Symbol *subroutineSymbol = lookupSymbolInClass(manager, symbol->className, secondSymbol->lexeme);
+					if (subroutineSymbol->type == TYPE_VOID)
+					{
+						writePop("temp", 0);
+					}
+				}
+				else
+				{
+					// printf("2\n");
+					// printf("%s() sym\n", symbol->lexeme);
+					// printf("%s() tk\n", token_1.lx);
+
+					// COME ABCK ADD FIX THIS
+				}
+				break;
+			default:
+				printf("something gone wrong\n");
+				break;
+			}
+
+			// if (strcmp(token_2.lx, ""))
+			// {
+
+			// 	if (scopeLevel != 0)
+			// 	{
+			// 		// if token 1 is not a class name
+			// 		// symbol will be set
+			// 		printf("%s(%s).%s()", symbol->lexeme, symbol->className, token_2.lx);
+			// 	}
+			// 	else
+			// 	{
+			// 		printf("token_1 %s token_2 %s\n", token_1.lx, token_2.lx);
+			// 	}
+			// }
+			// else
+			// {
+			// 	printf("token_1 %s\n", token_1.lx);
+			// }
+		}
 	}
 	else if (t.tp == SYMBOL && !strcmp(t.lx, "("))
 	{
 		t = GetNextToken();
 		if (t.ec)
 			return (ParserInfo){lexerErr, t}; // consume (
-		pi = expressionList();
+
+		pi = expression();
 		if (pi.er != none)
 		{
 			return pi;
@@ -1874,15 +2109,46 @@ ParserInfo operand()
 		t = GetNextToken();
 		if (t.ec)
 			return (ParserInfo){lexerErr, t}; // consume string
+		int strLength = strlen(t.lx);
+		writePush("constant", strLength);
+		writeCall("String", "new", 1);
+		for (int i = 0; i < strLength; i++)
+		{
+			writePush("constant", t.lx[i]);
+			writeCall("String", "appendChar", 2);
+		}
 	}
-	else if (t.tp == RESWORD && (!strcmp(t.lx, "true") ||
-								 !strcmp(t.lx, "false") ||
-								 !strcmp(t.lx, "null") ||
-								 !strcmp(t.lx, "this")))
+	else if (t.tp == RESWORD)
 	{
-		t = GetNextToken();
-		if (t.ec)
-			return (ParserInfo){lexerErr, t}; // consume keyword
+		if (!strcmp(t.lx, "true"))
+		{
+			t = GetNextToken();
+			if (t.ec)
+				return (ParserInfo){lexerErr, t};
+			writePush("constant", 1);
+			writeArithmetic("neg"); // true is -1 in Jack VM
+		}
+		else if (!strcmp(t.lx, "false"))
+		{
+			t = GetNextToken();
+			if (t.ec)
+				return (ParserInfo){lexerErr, t};
+			writePush("constant", 0); // false is 0
+		}
+		else if (!strcmp(t.lx, "null"))
+		{
+			t = GetNextToken();
+			if (t.ec)
+				return (ParserInfo){lexerErr, t};
+			writePush("constant", 0); // null is 0
+		}
+		else if (!strcmp(t.lx, "this"))
+		{
+			t = GetNextToken();
+			if (t.ec)
+				return (ParserInfo){lexerErr, t};
+			writePush("pointer", 0); // 'this' is pointer 0
+		}
 	}
 	else
 	{
@@ -1894,7 +2160,6 @@ ParserInfo operand()
 	pi.tk = t;
 	return pi;
 }
-
 int InitParser(char *file_name)
 {
 	return InitLexer(file_name);

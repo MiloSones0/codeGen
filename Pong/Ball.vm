@@ -1,12 +1,213 @@
 function Ball.new 0
 push constant 15
 call Memory.alloc 1
+pop pointer 0
+pop this 0
+pop this 1
+pop this 10
+push constant 6
+sub
+pop this 11
+pop this 12
+push constant 6
+sub
+pop this 13
+push constant 0
+pop this 14
+push pointer 0
+return
 function Ball.dispose 0
+push pointer 0
+call Memory.deAlloc 1
+pop temp 0
+push constant 0
+return
 function Ball.show 0
+push constant 1
+neg
+call Screen.setColor 1
+pop temp 0
+push constant 0
+return
 function Ball.hide 0
+push constant 0
+call Screen.setColor 1
+pop temp 0
+push constant 0
+return
 function Ball.draw 0
+push constant 5
+add
+push constant 5
+add
+call Screen.drawRectangle 4
+pop temp 0
+push constant 0
+return
 function Ball.getLeft 0
+return
 function Ball.getRight 0
+push constant 5
+add
+return
 function Ball.setDestination 3
+sub
+pop this 2
+sub
+pop this 3
+call Math.abs 1
+pop local 0
+call Math.abs 1
+pop local 1
+lt
+pop this 7
+pop local 2
+pop local 0
+pop local 1
+lt
+pop this 8
+lt
+pop this 9
+lt
+pop this 8
+lt
+pop this 9
+push constant 2
+call Math.multiply 2
+sub
+pop this 4
+push constant 2
+call Math.multiply 2
+pop this 5
+push constant 2
+sub
+call Math.multiply 2
+pop this 6
+push constant 0
+return
 function Ball.move 0
+push constant 0
+lt
+add
+pop this 4
+add
+pop this 4
+push constant 4
+add
+pop this 0
+push constant 4
+add
+pop this 1
+push constant 4
+sub
+pop this 0
+push constant 4
+sub
+pop this 1
+push constant 4
+add
+pop this 1
+push constant 4
+add
+pop this 0
+push constant 4
+sub
+pop this 1
+push constant 4
+sub
+pop this 0
+gt
+not
+push constant 1
+pop this 14
+pop this 0
+lt
+not
+push constant 2
+pop this 14
+pop this 0
+gt
+not
+push constant 3
+pop this 14
+pop this 1
+lt
+not
+push constant 4
+pop this 14
+pop this 1
+return
 function Ball.bounce 5
+push constant 10
+call Math.divide 2
+pop local 2
+push constant 10
+call Math.divide 2
+pop local 3
+push constant 0
+eq
+push constant 10
+pop local 4
+push constant 0
+lt
+not
+push constant 1
+eq
+and
+push constant 0
+lt
+push constant 1
+neg
+eq
+and
+or
+push constant 20
+pop local 4
+push constant 5
+pop local 4
+push constant 1
+eq
+push constant 506
+pop local 0
+push constant 50
+neg
+call Math.multiply 2
+call Math.divide 2
+pop local 1
+call Math.multiply 2
+add
+pop local 1
+push constant 2
+eq
+push constant 0
+pop local 0
+push constant 50
+call Math.multiply 2
+call Math.divide 2
+pop local 1
+call Math.multiply 2
+add
+pop local 1
+push constant 3
+eq
+push constant 250
+pop local 1
+push constant 25
+neg
+call Math.multiply 2
+call Math.divide 2
+pop local 0
+call Math.multiply 2
+add
+pop local 0
+push constant 0
+pop local 1
+push constant 25
+call Math.multiply 2
+call Math.divide 2
+pop local 0
+call Math.multiply 2
+add
+pop local 0
+push constant 0
+return

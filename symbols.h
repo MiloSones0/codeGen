@@ -101,7 +101,7 @@ void destroySymbolTableManager(SymbolTableManager *manager);
 void startClass(SymbolTableManager *manager, const char *className);
 void switchClass(SymbolTableManager *manager, const char *className);
 void endClass(SymbolTableManager *manager);
-void startSubroutine(SymbolTableManager *manager, const char *subroutineName);
+void startSubroutine(SymbolTableManager *manager, const char *subroutineName, SymbolType symbolType, SymbolKind symbolKind);
 void switchSubroutine(SymbolTableManager *manager, const char *subroutineName);
 void endSubroutine(SymbolTableManager *manager);
 int insertSymbol(SymbolTableManager *manager, const char *name, SymbolType type, SymbolKind kind, const char *className, const char *subroutineName);
@@ -109,5 +109,7 @@ Scope *lookupClass(SymbolTableManager *manager, const char *className);
 Symbol *lookupSymbolInClass(SymbolTableManager *manager, const char *className, const char *name);
 Symbol *lookupSymbolInSubroutine(Scope *subroutineScope, const char *name);
 void printSymbolTableTree(SymbolTableManager *manager);
+Symbol *findSubroutineSymbol(SymbolTableManager *manager, const char *subroutineName);
+Scope *getSubroutineScope(SymbolTableManager *manager, const char *className, const char *subroutineName);
 
 #endif // SYMBOLS_H

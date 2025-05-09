@@ -1,0 +1,26 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "build",
+            "type": "shell",
+            "command": "cc",
+            "args": [
+                "--std=c99",
+                "-g",
+                "lexer.c",
+                "parser.c",
+                "symbols.c",
+                "compiler.c",
+                "CodeGrader.c",
+                "-o",
+                "CodeGrader"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": []
+        }
+    ]
+}

@@ -5,6 +5,10 @@
 
 #include "symbols.h"
 
+int insertIntoArray(Symbol *array, int *count, const char *name,
+                    SymbolType type, SymbolKind kind, const char *className,
+                    const char *subroutineName);
+
 // Initialize symbol table manager
 SymbolTableManager *initSymbolTableManager()
 {
@@ -98,6 +102,27 @@ void switchClass(SymbolTableManager *manager, const char *className)
     fprintf(stderr, "Error: Cannot switch to class '%s' as not defined\n", className);
 }
 
+Symbol *findSubroutineSymbol(SymbolTableManager *manager, const char *subroutineName)
+{
+    if (!manager || !manager->currentClass || !subroutineName)
+    {
+        return NULL;
+    }
+
+    Scope *currentClass = manager->currentClass;
+
+    // Search through all subroutines in the current class
+    for (int i = 0; i < currentClass->subroutineCount; i++)
+    {
+        if (strcmp(currentClass->subroutines[i].lexeme, subroutineName) == 0)
+        {
+            return &currentClass->subroutines[i];
+        }
+    }
+
+    return NULL; // Subroutine not found
+}
+
 // End current class scope
 void endClass(SymbolTableManager *manager)
 {
@@ -113,7 +138,7 @@ void endClass(SymbolTableManager *manager)
 }
 
 // Start a new subroutine scope
-void startSubroutine(SymbolTableManager *manager, const char *subroutineName)
+void startSubroutine(SymbolTableManager *manager, const char *subroutineName, SymbolType symbolType, SymbolKind symbolKind)
 {
     if (!manager->currentClass)
     {
@@ -154,13 +179,20 @@ void startSubroutine(SymbolTableManager *manager, const char *subroutineName)
     // Set as current subroutine
     manager->currentSubroutine = newScope;
 
+    if (symbolKind == KIND_METHOD)
+    {
+        insertIntoArray(newScope->arguments, &newScope->argumentCount,
+                        "this", TYPE_IDENTIFIER, KIND_ARGUMENT,
+                        manager->currentClass->name, subroutineName);
+    }
+
     // Also add to the class's subroutine declarations
     int i = manager->currentClass->subroutineCount;
     strncpy(manager->currentClass->subroutines[i].lexeme, subroutineName,
             sizeof(manager->currentClass->subroutines[i].lexeme) - 1);
 
-    manager->currentClass->subroutines[i].type = TYPE_UNKNOWN; // Can be set properly later
-    manager->currentClass->subroutines[i].kind = KIND_SUBROUTINE;
+    manager->currentClass->subroutines[i].type = symbolType; // Can be set properly later
+    manager->currentClass->subroutines[i].kind = symbolKind;
     strncpy(manager->currentClass->subroutines[i].className,
             manager->currentClass->name,
             sizeof(manager->currentClass->subroutines[i].className) - 1);
@@ -236,9 +268,20 @@ int insertSymbol(SymbolTableManager *manager, const char *name, SymbolType type,
         switch (kind)
         {
         case KIND_ARGUMENT:
-            return insertIntoArray(manager->currentSubroutine->arguments,
-                                   &manager->currentSubroutine->argumentCount,
-                                   name, type, kind, className, subroutineName);
+            Symbol *symbol = findSubroutineSymbol(manager, manager->currentSubroutine->name);
+            if (symbol->kind == KIND_METHOD && manager->currentSubroutine->argumentCount == 0)
+            {
+                return insertIntoArray(manager->currentSubroutine->arguments,
+                                       &manager->currentSubroutine->argumentCount,
+                                       name, type, kind, className, subroutineName);
+            }
+            else
+            {
+                return insertIntoArray(manager->currentSubroutine->arguments,
+                                       &manager->currentSubroutine->argumentCount,
+                                       name, type, kind, className, subroutineName);
+            }
+
         case KIND_LOCAL:
             return insertIntoArray(manager->currentSubroutine->locals,
                                    &manager->currentSubroutine->localCount,
@@ -315,8 +358,10 @@ Symbol *lookupSymbolInClass(SymbolTableManager *manager, const char *className, 
 
             for (int i = 0; i < entry->classScope->subroutineCount; i++)
             {
+                // printf("subroutines in %s: %s == %s\n", className, entry->classScope->subroutines[i].lexeme, name);
                 if (strcmp(entry->classScope->subroutines[i].lexeme, name) == 0)
                 {
+                    // printf("returning\n");
                     return &entry->classScope->subroutines[i];
                 }
             }
@@ -435,4 +480,39 @@ void printSymbolTableTree(SymbolTableManager *manager)
 
         entry = entry->next;
     }
+}
+Scope *getSubroutineScope(SymbolTableManager *manager, const char *className, const char *subroutineName)
+{
+    // First find the class
+    ClassEntry *classEntry = manager->classList;
+    while (classEntry != NULL)
+    {
+        if (strcmp(classEntry->name, className) == 0)
+        {
+            // Found the class, now search its subroutines
+            Scope *classScope = classEntry->classScope;
+
+            // Check if the subroutine exists in the class declarations
+            for (int i = 0; i < classScope->subroutineCount; i++)
+            {
+                if (strcmp(classScope->subroutines[i].lexeme, subroutineName) == 0)
+                {
+                    // Now look for the implementation scope in subroutineScopes
+                    SubroutineScope *subScope = classScope->subroutineScopes;
+                    while (subScope != NULL)
+                    {
+                        if (strcmp(subScope->scope->name, subroutineName) == 0)
+                        {
+                            return subScope->scope;
+                        }
+                        subScope = subScope->next;
+                    }
+                    return NULL; // Subroutine declared but no implementation scope found
+                }
+            }
+            return NULL; // Subroutine not found in class
+        }
+        classEntry = classEntry->next;
+    }
+    return NULL; // Class not found
 }

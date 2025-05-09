@@ -25,28 +25,6 @@ SymbolTableManager *manager;
 int pass;
 FILE *fptr;
 
-void PrintFileContents(const char *filename)
-{
-	FILE *file = fopen(filename, "r");
-	if (file == NULL)
-	{
-		printf("Error: Could not open file %s\n", filename);
-		return;
-	}
-
-	printf("Contents of %s:\n", filename);
-	printf("----------------------------------------\n");
-
-	char line[1024]; // Buffer to hold each line
-	while (fgets(line, sizeof(line), file) != NULL)
-	{
-		printf("%s", line);
-	}
-
-	printf("\n----------------------------------------\n");
-	fclose(file);
-}
-
 int InitCompiler()
 {
 	manager = initSymbolTableManager();
@@ -143,16 +121,23 @@ void openfile(char *filename)
 void writePush(char *Segment, int index)
 {
 	// printf("write push %s %d\n", Segment, index);
+	// printf("File pointer address: %p\n", (void *)fptr);
+	// printf("Is file pointer valid? %s\n", fptr ? "Yes" : "No");
+	// if (fptr == NULL)
+	// {
+	// 	printf("null fptr\n");
+	// }
 	fprintf(fptr, "push %s %d\n", Segment, index);
 }
 
-void writePop(Segment segment, int index)
+void writePop(char *Segment, int index)
 {
-	;
+	fprintf(fptr, "pop %s %d\n", Segment, index);
 }
-void writeArithmetic(Command command)
+
+void writeArithmetic(char *command)
 {
-	;
+	fprintf(fptr, "%s\n", command);
 }
 void writeLabel(char *label)
 {
@@ -174,7 +159,7 @@ void writeFunction(char *class, char *name, int nLocals)
 }
 void writeReturn()
 {
-	;
+	fprintf(fptr, "return\n");
 }
 void close()
 {
