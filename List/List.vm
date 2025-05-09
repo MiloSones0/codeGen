@@ -2,31 +2,45 @@ function List.new 0
 push constant 2
 call Memory.alloc 1
 pop pointer 0
+push argument 0
+push local 0
 pop this 0
+push argument 1
+push local 1
 pop this 1
 push pointer 0
 return
 function List.getData 0
+push field 0
+push local 0
 return
 function List.getNext 0
+push field 1
+push local 1
 return
 function List.print 1
 push pointer 0
 pop local 0
+push local 0
+push local 0
 push constant 0
 eq
 not
+push local 0
 call List.getData 1
 call Output.printInt 1
 pop temp 0
 push constant 32
 call Output.printChar 1
 pop temp 0
+push local 0
 call List.getNext 1
 pop local 0
 push constant 0
 return
 function List.dispose 0
+push field 1
+push local 1
 push constant 0
 eq
 not

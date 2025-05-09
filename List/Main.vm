@@ -5,6 +5,8 @@ call List.new 2
 pop local 0
 push constant 2
 push constant 3
+push local 0
+push local 0
 call List.new 2
 call List.new 2
 pop local 0

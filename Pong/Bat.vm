@@ -2,9 +2,17 @@ function Bat.new 0
 push constant 5
 call Memory.alloc 1
 pop pointer 0
+push argument 0
+push local 0
 pop this 0
+push argument 1
+push local 1
 pop this 1
+push argument 2
+push local 2
 pop this 2
+push argument 3
+push local 3
 pop this 3
 push constant 2
 pop this 4
@@ -30,31 +38,59 @@ pop temp 0
 push constant 0
 return
 function Bat.draw 0
+push field 0
+push local 0
+push field 1
+push local 1
+push field 0
+push local 0
+push field 2
+push local 2
 add
+push field 1
+push local 1
+push field 3
+push local 3
 add
 call Screen.drawRectangle 4
 pop temp 0
 push constant 0
 return
 function Bat.setDirection 0
+push argument 1
+push local 1
 pop this 4
 push constant 0
 return
 function Bat.getLeft 0
+push field 0
+push local 0
 return
 function Bat.getRight 0
+push field 0
+push local 0
+push field 2
+push local 2
 add
 return
 function Bat.setWidth 0
+push argument 1
+push local 1
 pop this 2
 push constant 0
 return
 function Bat.move 0
+push field 4
+push local 4
 push constant 1
 eq
+push field 0
+push local 0
 push constant 4
 sub
 pop this 0
+push field 0
+push local 0
 push constant 0
 lt
 push constant 0
@@ -62,12 +98,26 @@ pop this 0
 push constant 0
 call Screen.setColor 1
 pop temp 0
+push field 0
+push local 0
+push field 2
+push local 2
 add
 push constant 1
 add
+push field 1
+push local 1
+push field 0
+push local 0
+push field 2
+push local 2
 add
 push constant 4
 add
+push field 1
+push local 1
+push field 3
+push local 3
 add
 call Screen.drawRectangle 4
 pop temp 0
@@ -75,27 +125,55 @@ push constant 1
 neg
 call Screen.setColor 1
 pop temp 0
+push field 0
+push local 0
+push field 1
+push local 1
+push field 0
+push local 0
 push constant 3
 add
+push field 1
+push local 1
+push field 3
+push local 3
 add
 call Screen.drawRectangle 4
 pop temp 0
+push field 0
+push local 0
 push constant 4
 add
 pop this 0
+push field 0
+push local 0
+push field 2
+push local 2
 add
 push constant 511
 gt
 push constant 511
+push field 2
+push local 2
 sub
 pop this 0
 push constant 0
 call Screen.setColor 1
 pop temp 0
+push field 0
+push local 0
 push constant 4
 sub
+push field 1
+push local 1
+push field 0
+push local 0
 push constant 1
 sub
+push field 1
+push local 1
+push field 3
+push local 3
 add
 call Screen.drawRectangle 4
 pop temp 0
@@ -103,10 +181,24 @@ push constant 1
 neg
 call Screen.setColor 1
 pop temp 0
+push field 0
+push local 0
+push field 2
+push local 2
 add
 push constant 3
 sub
+push field 1
+push local 1
+push field 0
+push local 0
+push field 2
+push local 2
 add
+push field 1
+push local 1
+push field 3
+push local 3
 add
 call Screen.drawRectangle 4
 pop temp 0
