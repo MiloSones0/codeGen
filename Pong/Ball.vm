@@ -3,61 +3,68 @@ push constant 15
 call Memory.alloc 1
 pop pointer 0
 push argument 0
-push local 0
 pop this 0
 push argument 1
-push local 1
 pop this 1
 push argument 2
-push local 2
 pop this 10
 push argument 3
-push local 3
 push constant 6
 sub
 pop this 11
 push argument 4
-push local 4
 pop this 12
 push argument 5
-push local 5
 push constant 6
 sub
 pop this 13
 push constant 0
 pop this 14
 push pointer 0
+call Ball.show 1
+pop temp 0
+push pointer 0
 return
 function Ball.dispose 0
+push argument 0
+pop pointer 0
 push pointer 0
 call Memory.deAlloc 1
 pop temp 0
 push constant 0
 return
 function Ball.show 0
-push constant 1
-neg
+push argument 0
+pop pointer 0
+push constant 0
+not
 call Screen.setColor 1
+pop temp 0
+push pointer 0
+call Ball.draw 1
 pop temp 0
 push constant 0
 return
 function Ball.hide 0
+push argument 0
+pop pointer 0
 push constant 0
 call Screen.setColor 1
+pop temp 0
+push pointer 0
+call Ball.draw 1
 pop temp 0
 push constant 0
 return
 function Ball.draw 0
-push field 0
-push local 0
-push field 1
-push local 1
-push field 0
-push local 0
+push argument 0
+pop pointer 0
+push this 0
+push this 1
+push this 0
 push constant 5
 add
-push field 1
-push local 1
+push this 1
 push constant 5
 add
 call Screen.drawRectangle 4
@@ -65,94 +72,79 @@ pop temp 0
 push constant 0
 return
 function Ball.getLeft 0
-push field 0
-push local 0
+push argument 0
+pop pointer 0
+push this 0
 return
 function Ball.getRight 0
-push field 0
-push local 0
+push argument 0
+pop pointer 0
+push this 0
 push constant 5
 add
 return
 function Ball.setDestination 3
+push argument 0
+pop pointer 0
 push argument 1
-push local 1
-push field 0
-push local 0
+push this 0
 sub
 pop this 2
 push argument 2
-push local 2
-push field 1
-push local 1
+push this 1
 sub
 pop this 3
-push field 2
-push local 2
+push this 2
 call Math.abs 1
 pop local 0
-push field 3
-push local 3
+push this 3
 call Math.abs 1
 pop local 1
 push local 0
-push local 0
-push local 1
 push local 1
 lt
 pop this 7
-push field 7
-push local 7
-push local 0
+push this 7
+if-goto IF_TRUE217
+goto IF_FALSE217
+label IF_TRUE217
 push local 0
 pop local 2
 push local 1
-push local 1
 pop local 0
 push local 2
-push local 2
 pop local 1
-push field 1
-push local 1
+push this 1
 push argument 2
-push local 2
 lt
 pop this 8
-push field 0
-push local 0
+push this 0
 push argument 1
-push local 1
 lt
 pop this 9
-push field 0
-push local 0
+goto IF_END217
+label IF_FALSE217
+push this 0
 push argument 1
-push local 1
 lt
 pop this 8
-push field 1
-push local 1
+push this 1
 push argument 2
-push local 2
 lt
 pop this 9
+label IF_END217
 push constant 2
 push local 1
-push local 1
 call Math.multiply 2
-push local 0
 push local 0
 sub
 pop this 4
 push constant 2
 push local 1
-push local 1
 call Math.multiply 2
 pop this 5
 push constant 2
 push local 1
-push local 1
-push local 0
 push local 0
 sub
 call Math.multiply 2
@@ -160,256 +152,293 @@ pop this 6
 push constant 0
 return
 function Ball.move 0
-push field 4
-push local 4
+push argument 0
+pop pointer 0
+push pointer 0
+call Ball.hide 1
+pop temp 0
+push this 4
 push constant 0
 lt
-push field 4
-push local 4
-push field 5
-push local 5
+if-goto IF_TRUE218
+goto IF_FALSE218
+label IF_TRUE218
+push this 4
+push this 5
 add
 pop this 4
-push field 4
-push local 4
-push field 6
-push local 6
+goto IF_END218
+label IF_FALSE218
+push this 4
+push this 6
 add
 pop this 4
-push field 9
-push local 9
-push field 7
-push local 7
-push field 0
-push local 0
+push this 9
+if-goto IF_TRUE219
+goto IF_FALSE219
+label IF_TRUE219
+push this 7
+if-goto IF_TRUE220
+goto IF_FALSE220
+label IF_TRUE220
+push this 0
 push constant 4
 add
 pop this 0
-push field 1
-push local 1
+goto IF_END220
+label IF_FALSE220
+push this 1
 push constant 4
 add
 pop this 1
-push field 7
-push local 7
-push field 0
-push local 0
+label IF_END220
+goto IF_END219
+label IF_FALSE219
+push this 7
+if-goto IF_TRUE221
+goto IF_FALSE221
+label IF_TRUE221
+push this 0
 push constant 4
 sub
 pop this 0
-push field 1
-push local 1
+goto IF_END221
+label IF_FALSE221
+push this 1
 push constant 4
 sub
 pop this 1
-push field 8
-push local 8
-push field 7
-push local 7
-push field 1
-push local 1
+label IF_END221
+label IF_END219
+label IF_END218
+push this 8
+if-goto IF_TRUE222
+goto IF_FALSE222
+label IF_TRUE222
+push this 7
+if-goto IF_TRUE223
+goto IF_FALSE223
+label IF_TRUE223
+push this 1
 push constant 4
 add
 pop this 1
-push field 0
-push local 0
+goto IF_END223
+label IF_FALSE223
+push this 0
 push constant 4
 add
 pop this 0
-push field 7
-push local 7
-push field 1
-push local 1
+label IF_END223
+goto IF_END222
+label IF_FALSE222
+push this 7
+if-goto IF_TRUE224
+goto IF_FALSE224
+label IF_TRUE224
+push this 1
 push constant 4
 sub
 pop this 1
-push field 0
-push local 0
+goto IF_END224
+label IF_FALSE224
+push this 0
 push constant 4
 sub
 pop this 0
-push field 0
-push local 0
-push field 10
-push local 10
+label IF_END224
+label IF_END222
+push this 0
+push this 10
 gt
 not
+if-goto IF_TRUE225
+goto IF_FALSE225
+label IF_TRUE225
 push constant 1
 pop this 14
-push field 10
-push local 10
+push this 10
 pop this 0
-push field 0
-push local 0
-push field 11
-push local 11
+label IF_FALSE225
+push this 0
+push this 11
 lt
 not
+if-goto IF_TRUE226
+goto IF_FALSE226
+label IF_TRUE226
 push constant 2
 pop this 14
-push field 11
-push local 11
+push this 11
 pop this 0
-push field 1
-push local 1
-push field 12
-push local 12
+label IF_FALSE226
+push this 1
+push this 12
 gt
 not
+if-goto IF_TRUE227
+goto IF_FALSE227
+label IF_TRUE227
 push constant 3
 pop this 14
-push field 12
-push local 12
+push this 12
 pop this 1
-push field 1
-push local 1
-push field 13
-push local 13
+label IF_FALSE227
+push this 1
+push this 13
 lt
 not
+if-goto IF_TRUE228
+goto IF_FALSE228
+label IF_TRUE228
 push constant 4
 pop this 14
-push field 13
-push local 13
+push this 13
 pop this 1
-push field 14
-push local 14
+label IF_FALSE228
+push pointer 0
+call Ball.show 1
+pop temp 0
+push this 14
 return
 function Ball.bounce 5
-push field 2
-push local 2
+push argument 0
+pop pointer 0
+push this 2
 push constant 10
 call Math.divide 2
 pop local 2
-push field 3
-push local 3
+push this 3
 push constant 10
 call Math.divide 2
 pop local 3
 push argument 1
-push local 1
 push constant 0
 eq
+if-goto IF_TRUE229
+goto IF_FALSE229
+label IF_TRUE229
 push constant 10
 pop local 4
-push field 2
-push local 2
+goto IF_END229
+label IF_FALSE229
+push this 2
 push constant 0
 lt
 not
 push argument 1
-push local 1
 push constant 1
 eq
 and
-push field 2
-push local 2
+push this 2
 push constant 0
 lt
 push argument 1
-push local 1
 push constant 1
 neg
 eq
 and
 or
+if-goto IF_TRUE230
+goto IF_FALSE230
+label IF_TRUE230
 push constant 20
 pop local 4
+goto IF_END230
+label IF_FALSE230
 push constant 5
 pop local 4
-push field 14
-push local 14
+label IF_END230
+label IF_END229
+push this 14
 push constant 1
 eq
+if-goto IF_TRUE231
+goto IF_FALSE231
+label IF_TRUE231
 push constant 506
 pop local 0
 push local 3
-push local 3
 push constant 50
 neg
 call Math.multiply 2
 push local 2
-push local 2
 call Math.divide 2
 pop local 1
-push field 1
+push this 1
 push local 1
-push local 1
-push local 1
-push local 4
 push local 4
 call Math.multiply 2
 add
 pop local 1
-push field 14
-push local 14
+goto IF_END231
+label IF_FALSE231
+push this 14
 push constant 2
 eq
+if-goto IF_TRUE232
+goto IF_FALSE232
+label IF_TRUE232
 push constant 0
 pop local 0
-push local 3
 push local 3
 push constant 50
 call Math.multiply 2
 push local 2
-push local 2
 call Math.divide 2
 pop local 1
-push field 1
+push this 1
 push local 1
-push local 1
-push local 1
-push local 4
 push local 4
 call Math.multiply 2
 add
 pop local 1
-push field 14
-push local 14
+goto IF_END232
+label IF_FALSE232
+push this 14
 push constant 3
 eq
+if-goto IF_TRUE233
+goto IF_FALSE233
+label IF_TRUE233
 push constant 250
 pop local 1
 push local 2
-push local 2
 push constant 25
 neg
 call Math.multiply 2
 push local 3
-push local 3
 call Math.divide 2
 pop local 0
-push field 0
+push this 0
 push local 0
-push local 0
-push local 0
-push local 4
 push local 4
 call Math.multiply 2
 add
 pop local 0
+goto IF_END233
+label IF_FALSE233
 push constant 0
 pop local 1
-push local 2
 push local 2
 push constant 25
 call Math.multiply 2
 push local 3
-push local 3
 call Math.divide 2
 pop local 0
-push field 0
+push this 0
 push local 0
-push local 0
-push local 0
-push local 4
 push local 4
 call Math.multiply 2
 add
 pop local 0
-push local 0
+label IF_END233
+label IF_END232
+label IF_END231
+push pointer 0
 push local 0
 push local 1
-push local 1
+call Ball.setDestination 3
+pop temp 0
 push constant 0
 return

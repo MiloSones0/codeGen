@@ -40,19 +40,18 @@ call String.appendChar 2
 call Keyboard.readInt 1
 pop local 1
 push local 1
-push local 1
 call Array.new 1
 pop local 0
 push constant 0
 pop local 2
+label WHILE_EXP26
 push local 2
-push local 2
-push local 1
 push local 1
 lt
-push local 2
-push local 2
+not
+if-goto WHILE_END26
 push local 0
+push local 2
 add
 push constant 23
 call String.new 1
@@ -108,32 +107,35 @@ pop pointer 1
 push temp 0
 pop that 0
 push local 2
-push local 2
 push constant 1
 add
 pop local 2
+goto WHILE_EXP26
+label WHILE_END26
 push constant 0
 pop local 2
 push constant 0
 pop local 3
+label WHILE_EXP27
 push local 2
-push local 2
-push local 1
 push local 1
 lt
-push local 3
+not
+if-goto WHILE_END27
 push local 3
 push local 2
-push local 2
-push local 0
 push local 0
 add
+pop pointer 1
+push that 0
+add
 pop local 3
-push local 2
 push local 2
 push constant 1
 add
 pop local 2
+goto WHILE_EXP27
+label WHILE_END27
 push constant 16
 call String.new 1
 push constant 84
@@ -171,8 +173,6 @@ call String.appendChar 2
 call Output.printString 1
 pop temp 0
 push local 3
-push local 3
-push local 1
 push local 1
 call Math.divide 2
 call Output.printInt 1

@@ -3,204 +3,205 @@ push constant 5
 call Memory.alloc 1
 pop pointer 0
 push argument 0
-push local 0
 pop this 0
 push argument 1
-push local 1
 pop this 1
 push argument 2
-push local 2
 pop this 2
 push argument 3
-push local 3
 pop this 3
 push constant 2
 pop this 4
 push pointer 0
+call Bat.show 1
+pop temp 0
+push pointer 0
 return
 function Bat.dispose 0
+push argument 0
+pop pointer 0
 push pointer 0
 call Memory.deAlloc 1
 pop temp 0
 push constant 0
 return
 function Bat.show 0
-push constant 1
-neg
+push argument 0
+pop pointer 0
+push constant 0
+not
 call Screen.setColor 1
+pop temp 0
+push pointer 0
+call Bat.draw 1
 pop temp 0
 push constant 0
 return
 function Bat.hide 0
+push argument 0
+pop pointer 0
 push constant 0
 call Screen.setColor 1
+pop temp 0
+push pointer 0
+call Bat.draw 1
 pop temp 0
 push constant 0
 return
 function Bat.draw 0
-push field 0
-push local 0
-push field 1
-push local 1
-push field 0
-push local 0
-push field 2
-push local 2
+push argument 0
+pop pointer 0
+push this 0
+push this 1
+push this 0
+push this 2
 add
-push field 1
-push local 1
-push field 3
-push local 3
+push this 1
+push this 3
 add
 call Screen.drawRectangle 4
 pop temp 0
 push constant 0
 return
 function Bat.setDirection 0
+push argument 0
+pop pointer 0
 push argument 1
-push local 1
 pop this 4
 push constant 0
 return
 function Bat.getLeft 0
-push field 0
-push local 0
+push argument 0
+pop pointer 0
+push this 0
 return
 function Bat.getRight 0
-push field 0
-push local 0
-push field 2
-push local 2
+push argument 0
+pop pointer 0
+push this 0
+push this 2
 add
 return
 function Bat.setWidth 0
+push argument 0
+pop pointer 0
+push pointer 0
+call Bat.hide 1
+pop temp 0
 push argument 1
-push local 1
 pop this 2
+push pointer 0
+call Bat.show 1
+pop temp 0
 push constant 0
 return
 function Bat.move 0
-push field 4
-push local 4
+push argument 0
+pop pointer 0
+push this 4
 push constant 1
 eq
-push field 0
-push local 0
+if-goto IF_TRUE205
+goto IF_FALSE205
+label IF_TRUE205
+push this 0
 push constant 4
 sub
 pop this 0
-push field 0
-push local 0
+push this 0
 push constant 0
 lt
+if-goto IF_TRUE206
+goto IF_FALSE206
+label IF_TRUE206
 push constant 0
 pop this 0
+label IF_FALSE206
 push constant 0
 call Screen.setColor 1
 pop temp 0
-push field 0
-push local 0
-push field 2
-push local 2
+push this 0
+push this 2
 add
 push constant 1
 add
-push field 1
-push local 1
-push field 0
-push local 0
-push field 2
-push local 2
+push this 1
+push this 0
+push this 2
 add
 push constant 4
 add
-push field 1
-push local 1
-push field 3
-push local 3
+push this 1
+push this 3
 add
 call Screen.drawRectangle 4
 pop temp 0
-push constant 1
-neg
+push constant 0
+not
 call Screen.setColor 1
 pop temp 0
-push field 0
-push local 0
-push field 1
-push local 1
-push field 0
-push local 0
+push this 0
+push this 1
+push this 0
 push constant 3
 add
-push field 1
-push local 1
-push field 3
-push local 3
+push this 1
+push this 3
 add
 call Screen.drawRectangle 4
 pop temp 0
-push field 0
-push local 0
+goto IF_END205
+label IF_FALSE205
+push this 0
 push constant 4
 add
 pop this 0
-push field 0
-push local 0
-push field 2
-push local 2
+push this 0
+push this 2
 add
 push constant 511
 gt
+if-goto IF_TRUE207
+goto IF_FALSE207
+label IF_TRUE207
 push constant 511
-push field 2
-push local 2
+push this 2
 sub
 pop this 0
+label IF_FALSE207
 push constant 0
 call Screen.setColor 1
 pop temp 0
-push field 0
-push local 0
+push this 0
 push constant 4
 sub
-push field 1
-push local 1
-push field 0
-push local 0
+push this 1
+push this 0
 push constant 1
 sub
-push field 1
-push local 1
-push field 3
-push local 3
+push this 1
+push this 3
 add
 call Screen.drawRectangle 4
 pop temp 0
-push constant 1
-neg
+push constant 0
+not
 call Screen.setColor 1
 pop temp 0
-push field 0
-push local 0
-push field 2
-push local 2
+push this 0
+push this 2
 add
 push constant 3
 sub
-push field 1
-push local 1
-push field 0
-push local 0
-push field 2
-push local 2
+push this 1
+push this 0
+push this 2
 add
-push field 1
-push local 1
-push field 3
-push local 3
+push this 1
+push this 3
 add
 call Screen.drawRectangle 4
 pop temp 0
+label IF_END205
 push constant 0
 return

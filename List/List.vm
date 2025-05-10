@@ -3,29 +3,33 @@ push constant 2
 call Memory.alloc 1
 pop pointer 0
 push argument 0
-push local 0
 pop this 0
 push argument 1
-push local 1
 pop this 1
 push pointer 0
 return
 function List.getData 0
-push field 0
-push local 0
+push argument 0
+pop pointer 0
+push this 0
 return
 function List.getNext 0
-push field 1
-push local 1
+push argument 0
+pop pointer 0
+push this 1
 return
 function List.print 1
+push argument 0
+pop pointer 0
 push pointer 0
 pop local 0
-push local 0
+label WHILE_EXP31
 push local 0
 push constant 0
 eq
 not
+not
+if-goto WHILE_END31
 push local 0
 call List.getData 1
 call Output.printInt 1
@@ -36,16 +40,24 @@ pop temp 0
 push local 0
 call List.getNext 1
 pop local 0
+goto WHILE_EXP31
+label WHILE_END31
 push constant 0
 return
 function List.dispose 0
-push field 1
-push local 1
+push argument 0
+pop pointer 0
+push this 1
 push constant 0
 eq
 not
+if-goto IF_TRUE99
+goto IF_FALSE99
+label IF_TRUE99
+push this 1
 call List.dispose 1
 pop temp 0
+label IF_FALSE99
 push pointer 0
 call Memory.deAlloc 1
 pop temp 0

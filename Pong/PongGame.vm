@@ -8,8 +8,7 @@ push constant 50
 pop this 6
 push constant 230
 push constant 229
-push field 6
-push local 6
+push this 6
 push constant 7
 call Bat.new 4
 pop this 0
@@ -21,6 +20,7 @@ push constant 0
 push constant 229
 call Ball.new 6
 pop this 1
+push this 1
 push constant 400
 push constant 0
 call Ball.setDestination 3
@@ -66,8 +66,12 @@ pop this 5
 push pointer 0
 return
 function PongGame.dispose 0
+push argument 0
+pop pointer 0
+push this 0
 call Bat.dispose 1
 pop temp 0
+push this 1
 call Ball.dispose 1
 pop temp 0
 push pointer 0
@@ -82,66 +86,102 @@ push constant 0
 return
 function PongGame.getInstance 0
 push static 0
-push local 0
 return
 function PongGame.run 1
-push field 3
-push local 3
+push argument 0
+pop pointer 0
+label WHILE_EXP49
+push this 3
 not
-push local 0
+not
+if-goto WHILE_END49
+label WHILE_EXP50
 push local 0
 push constant 0
 eq
-push field 3
-push local 3
+push this 3
 not
 and
+not
+if-goto WHILE_END50
 call Keyboard.keyPressed 0
 pop local 0
+push this 0
 call Bat.move 1
+pop temp 0
+push pointer 0
+call PongGame.moveBall 1
 pop temp 0
 push constant 50
 call Sys.wait 1
 pop temp 0
-push local 0
+goto WHILE_EXP50
+label WHILE_END50
 push local 0
 push constant 130
 eq
+if-goto IF_TRUE208
+goto IF_FALSE208
+label IF_TRUE208
+push this 0
 push constant 1
 call Bat.setDirection 2
 pop temp 0
-push local 0
+goto IF_END208
+label IF_FALSE208
 push local 0
 push constant 132
 eq
+if-goto IF_TRUE209
+goto IF_FALSE209
+label IF_TRUE209
+push this 0
 push constant 2
 call Bat.setDirection 2
 pop temp 0
-push local 0
+goto IF_END209
+label IF_FALSE209
 push local 0
 push constant 140
 eq
-push constant 1
-neg
+if-goto IF_TRUE210
+goto IF_FALSE210
+label IF_TRUE210
+push constant 0
+not
 pop this 3
-push local 0
+label IF_FALSE210
+label IF_END209
+label IF_END208
+label WHILE_EXP51
 push local 0
 push constant 0
 eq
 not
-push field 3
-push local 3
+push this 3
 not
 and
+not
+if-goto WHILE_END51
 call Keyboard.keyPressed 0
 pop local 0
+push this 0
 call Bat.move 1
+pop temp 0
+push pointer 0
+call PongGame.moveBall 1
 pop temp 0
 push constant 50
 call Sys.wait 1
 pop temp 0
-push field 3
-push local 3
+goto WHILE_EXP51
+label WHILE_END51
+goto WHILE_EXP49
+label WHILE_END49
+push this 3
+if-goto IF_TRUE211
+goto IF_FALSE211
+label IF_TRUE211
 push constant 10
 push constant 27
 call Output.moveCursor 2
@@ -168,89 +208,95 @@ push constant 114
 call String.appendChar 2
 call Output.printString 1
 pop temp 0
+label IF_FALSE211
 push constant 0
 return
 function PongGame.moveBall 5
-push field 1
+push argument 0
+pop pointer 0
+push this 1
 call Ball.move 1
 pop this 2
-push field 2
-push local 2
+push this 2
 push constant 0
 gt
-push field 2
-push local 2
-push field 5
-push local 5
+push this 2
+push this 5
 eq
 not
 and
-push field 2
-push local 2
+if-goto IF_TRUE212
+goto IF_FALSE212
+label IF_TRUE212
+push this 2
 pop this 5
 push constant 0
 pop local 0
-push field 0
+push this 0
 call Bat.getLeft 1
 pop local 1
-push field 0
+push this 0
 call Bat.getRight 1
 pop local 2
-push field 1
+push this 1
 call Ball.getLeft 1
 pop local 3
-push field 1
+push this 1
 call Ball.getRight 1
 pop local 4
-push field 2
-push local 2
+push this 2
 push constant 4
 eq
+if-goto IF_TRUE213
+goto IF_FALSE213
+label IF_TRUE213
 push local 1
-push local 1
-push local 4
 push local 4
 gt
 push local 2
-push local 2
-push local 3
 push local 3
 lt
 or
 pop this 3
-push field 3
-push local 3
+push this 3
 not
+if-goto IF_TRUE214
+goto IF_FALSE214
+label IF_TRUE214
 push local 4
-push local 4
-push local 1
 push local 1
 push constant 10
 add
 lt
+if-goto IF_TRUE215
+goto IF_FALSE215
+label IF_TRUE215
 push constant 1
 neg
 pop local 0
+goto IF_END215
+label IF_FALSE215
 push local 3
-push local 3
-push local 2
 push local 2
 push constant 10
 sub
 gt
+if-goto IF_TRUE216
+goto IF_FALSE216
+label IF_TRUE216
 push constant 1
 pop local 0
-push field 6
-push local 6
+label IF_FALSE216
+label IF_END215
+push this 6
 push constant 2
 sub
 pop this 6
-push field 6
-push local 6
+push this 0
+push this 6
 call Bat.setWidth 2
 pop temp 0
-push field 4
-push local 4
+push this 4
 push constant 1
 add
 pop this 4
@@ -258,13 +304,15 @@ push constant 22
 push constant 7
 call Output.moveCursor 2
 pop temp 0
-push field 4
-push local 4
+push this 4
 call Output.printInt 1
 pop temp 0
-push local 0
+label IF_FALSE214
+label IF_FALSE213
+push this 1
 push local 0
 call Ball.bounce 2
 pop temp 0
+label IF_FALSE212
 push constant 0
 return

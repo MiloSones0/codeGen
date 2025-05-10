@@ -7,16 +7,13 @@
 
 // you can declare prototypes of parser functions below
 
-extern SymbolTableManager *manager;
+extern ClassManager *manager;
 extern int pass;
-extern FILE *fptr;
-
-char tempType[100];
 
 ParserInfo classDeclar();
 ParserInfo memberDeclar();
 ParserInfo classVarDeclar();
-ParserInfo type(SymbolType *type);
+ParserInfo type(char *type);
 ParserInfo subroutineDeclar();
 ParserInfo paramList();
 ParserInfo subroutineBody();
@@ -38,2173 +35,1661 @@ ParserInfo operand();
 
 // Program structure
 // classDeclar → class identifier { {memberDeclar} }
-ParserInfo classDeclar()
-{
+ParserInfo classDeclar() {
 
-	ParserInfo pi = {0};
+  ParserInfo pi = {0};
 
-	// class
-	Token t = GetNextToken();
-	if (t.ec)
-		return (ParserInfo){lexerErr, t};
+  // class
+  Token t = GetNextToken();
+  if (t.ec)
+    return (ParserInfo){lexerErr, t};
 
-	if (t.tp != RESWORD || strcmp(t.lx, "class"))
-	{
-		pi.er = classExpected;
-		pi.tk = t;
-		return pi;
-	}
+  if (t.tp != RESWORD || strcmp(t.lx, "class")) {
+    pi.er = classExpected;
+    pi.tk = t;
+    return pi;
+  }
 
-	// identifier
-	t = GetNextToken();
-	if (t.ec)
-		return (ParserInfo){lexerErr, t};
+  // identifier
+  t = GetNextToken();
+  if (t.ec)
+    return (ParserInfo){lexerErr, t};
 
-	if (t.tp != ID)
-	{
-		pi.er = idExpected;
-		pi.tk = t;
-		return pi;
-	}
-	if (pass == 0)
-	{
-		startClass(manager, t.lx);
-	}
-	else
-	{
-		// set manager to to current class table
-		switchClass(manager, t.lx);
-	}
+  if (t.tp != ID) {
+    pi.er = idExpected;
+    pi.tk = t;
+    return pi;
+  }
 
-	// opening curly bracket
-	t = GetNextToken();
-	if (t.ec)
-		return (ParserInfo){lexerErr, t};
-	if (t.tp != SYMBOL || strcmp(t.lx, "{"))
-	{
-		pi.er = openBraceExpected;
-		pi.tk = t;
-		return pi;
-	}
+  if (pass == 0) {
+    if (createClass(manager, t.lx) == -1) {
+      pi.er = redecIdentifier;
+      pi.tk = t;
+      return pi;
+    }
+  } else {
+    setCurrentClass(manager, t.lx);
+  }
 
-	// zero or more memberDeclar
-	t = PeekNextToken();
-	if (t.ec)
-		return (ParserInfo){lexerErr, t};
-	while (t.tp != SYMBOL && strcmp(t.lx, "}"))
-	{
-		pi = memberDeclar();
-		if (pi.er != none)
-		{
-			return pi;
-		}
-		t = PeekNextToken();
-		if (t.ec)
-			return (ParserInfo){lexerErr, t};
-	}
+  // opening curly bracket
+  t = GetNextToken();
+  if (t.ec)
+    return (ParserInfo){lexerErr, t};
+  if (t.tp != SYMBOL || strcmp(t.lx, "{")) {
+    pi.er = openBraceExpected;
+    pi.tk = t;
+    return pi;
+  }
 
-	// closing curly bracket
-	t = GetNextToken();
-	if (t.ec)
-		return (ParserInfo){lexerErr, t};
-	if (t.tp != SYMBOL || strcmp(t.lx, "}"))
-	{
-		pi.er = closeBraceExpected;
-		pi.tk = t;
-		return pi;
-	}
-	// return the parser info struct
-	pi.tk = t;
-	if (pass == 0)
-	{
-		endClass(manager);
-	}
-	return pi;
+  // zero or more memberDeclar
+  t = PeekNextToken();
+  if (t.ec)
+    return (ParserInfo){lexerErr, t};
+  while (t.tp != SYMBOL && strcmp(t.lx, "}")) {
+    pi = memberDeclar();
+    if (pi.er != none) {
+      return pi;
+    }
+    t = PeekNextToken();
+    if (t.ec)
+      return (ParserInfo){lexerErr, t};
+  }
+
+  // closing curly bracket
+  t = GetNextToken();
+  if (t.ec)
+    return (ParserInfo){lexerErr, t};
+  if (t.tp != SYMBOL || strcmp(t.lx, "}")) {
+    pi.er = closeBraceExpected;
+    pi.tk = t;
+    return pi;
+  }
+  // return the parser info struct
+
+  clearCurrentClass(manager);
+  pi.tk = t;
+  return pi;
 }
 
 // memberDeclar → classVarDeclar | subroutineDeclar
-ParserInfo memberDeclar()
-{
+ParserInfo memberDeclar() {
 
-	ParserInfo pi = {0};
-	Token t = PeekNextToken();
-	if (t.ec)
-		return (ParserInfo){lexerErr, t};
-	// ClassVardDeclar check if toke is one of static, field
-	if (t.tp == RESWORD && (!strcmp(t.lx, "static") || !strcmp(t.lx, "field")))
-	{
-		pi = classVarDeclar();
-		if (pi.er != none)
-		{
-			return pi;
-		}
-	}
-	// subroutineDeclar check if token is one of constructor,function, method
-	else if (t.tp == RESWORD && (!strcmp(t.lx, "constructor") || !strcmp(t.lx, "function") || !strcmp(t.lx, "method")))
-	{
-		pi = subroutineDeclar();
-		if (pi.er != none)
-		{
-			return pi;
-		}
-	}
-	else
-	{
-		pi.er = memberDeclarErr;
-		pi.tk = t;
-		return pi;
-	}
-	pi.tk = t;
-	return pi;
+  ParserInfo pi = {0};
+  Token t = PeekNextToken();
+  if (t.ec)
+    return (ParserInfo){lexerErr, t};
+  // ClassVardDeclar check if toke is one of static, field
+  if (t.tp == RESWORD && (!strcmp(t.lx, "static") || !strcmp(t.lx, "field"))) {
+    pi = classVarDeclar();
+    if (pi.er != none) {
+      return pi;
+    }
+  }
+  // subroutineDeclar check if token is one of constructor,function, method
+  else if (t.tp == RESWORD &&
+           (!strcmp(t.lx, "constructor") || !strcmp(t.lx, "function") ||
+            !strcmp(t.lx, "method"))) {
+    pi = subroutineDeclar();
+    if (pi.er != none) {
+      return pi;
+    }
+  } else {
+    pi.er = memberDeclarErr;
+    pi.tk = t;
+    return pi;
+  }
+  pi.tk = t;
+  return pi;
 }
 
 // classVarDeclar → (static | field) type identifier {, identifier} ;
-ParserInfo classVarDeclar()
-{
-	SymbolKind kind_var = KIND_TEST;
-	SymbolType type_var = KIND_TEST;
-	char className[128];
-	char *subroutineName;
-	ParserInfo pi = {0};
-	Token t = GetNextToken();
-	if (t.ec)
-		return (ParserInfo){lexerErr, t};
-	// Check if first token is static or field
-	if (t.tp == RESWORD && !strcmp(t.lx, "static"))
-	{
-		kind_var = KIND_STATIC;
-	}
-	else if (t.tp == RESWORD && !strcmp(t.lx, "field"))
-	{
-		kind_var = KIND_FIELD;
-	}
-	else
-	{
-		pi.er = classVarErr;
-		pi.tk = t;
-		return pi;
-	}
+ParserInfo classVarDeclar() {
+  ParserInfo pi = {0};
+  Token t = GetNextToken();
+  char type_var[128] = {0};
+  char kind_var[128] = {0};
+  if (t.ec)
+    return (ParserInfo){lexerErr, t};
+  // Check if first token is static or field
+  if (t.tp == RESWORD && !strcmp(t.lx, "static")) {
+    strcpy(kind_var, "static");
+  } else if (t.tp == RESWORD && !strcmp(t.lx, "field")) {
+    strcpy(kind_var, "this");
+  } else {
+    pi.er = classVarErr;
+    pi.tk = t;
+    return pi;
+  }
 
-	// peek the next token for the symbol table to check type has been defined
-	t = PeekNextToken();
-	// Check for type
-	pi = type(&type_var);
-	if (pi.er != none)
-	{
-		return pi;
-	}
-	if (pass == 1)
-	{
-		if (type_var == TYPE_IDENTIFIER)
-		{
-			// check if type has been declared.
+  // peek the next token for the symbol table to check type has been defined
+  t = PeekNextToken();
+  // Check for type
+  pi = type(type_var);
+  if (pi.er != none) {
+    return pi;
+  }
+  // check if token is identifier
+  t = GetNextToken();
+  if (t.ec)
+    return (ParserInfo){lexerErr, t};
 
-			Scope *classScope = lookupClass(manager, t.lx);
-			if (classScope == NULL)
-			{
-				pi.er = undecIdentifier;
-				pi.tk = t;
-				return pi;
-			}
-			strncpy(className, t.lx, sizeof(t.lx));
-		}
-	}
-	// check if token is identifier
-	t = GetNextToken();
-	if (t.ec)
-		return (ParserInfo){lexerErr, t};
-
-	if (t.tp == ID)
-	{
-		if (pass == 1)
-		{
-			if (lookupSymbolInClass(manager, manager->currentClass->name, t.lx) != NULL)
-			{
-				pi.er = redecIdentifier;
-				pi.tk = t;
-				return pi;
-			}
-			if (type_var == TYPE_IDENTIFIER)
-			{
-				// className = t.lx;
-				subroutineName = NULL;
-			}
-			else
-			{
-				strncpy(className, manager->currentClass->name, sizeof(manager->currentClass->name));
-				subroutineName = NULL;
-			}
-			insertSymbol(manager, t.lx, type_var, kind_var, className, subroutineName);
-		}
-	}
-	else
-	{
-		pi.er = idExpected;
-		pi.tk = t;
-		return pi;
-	}
-	// Check for 0 or more commas followed by identifiers
-	t = PeekNextToken();
-	if (t.ec)
-		return (ParserInfo){lexerErr, t};
-	while (t.tp == SYMBOL && !strcmp(t.lx, ","))
-	{
-		// if next token is a comma then there will be a command then identifier
-		t = GetNextToken();
-		if (t.ec)
-			return (ParserInfo){lexerErr, t};
-		// Eat comma
-		t = GetNextToken();
-		if (t.ec)
-			return (ParserInfo){lexerErr, t};
-		if (t.tp == ID)
-		{
-			if (pass == 1)
-			{
-				if (lookupSymbolInClass(manager, manager->currentClass->name, t.lx) != NULL)
-				{
-					pi.er = redecIdentifier;
-					pi.tk = t;
-					return pi;
-				}
-				insertSymbol(manager, t.lx, type_var, kind_var, className, subroutineName);
-			}
-		}
-		else
-		{
-			pi.er = idExpected;
-			pi.tk = t;
-			return pi;
-		}
-		t = PeekNextToken();
-		if (t.ec)
-			return (ParserInfo){lexerErr, t};
-	}
-	// Check for semicolon
-	t = GetNextToken();
-	if (t.ec)
-		return (ParserInfo){lexerErr, t};
-	if (t.tp == SYMBOL && !strcmp(t.lx, ";"))
-	{
-		;
-	}
-	else
-	{
-		pi.er = semicolonExpected;
-		pi.tk = t;
-		return pi;
-	}
-	pi.tk = t;
-	return pi;
+  if (t.tp == ID) {
+    if (pass == 1) {
+      int res = insertClassSymbol(manager, t.lx, type_var, kind_var);
+      if (res < 0) {
+        fprintf(stderr, "Error adding symbol to class\n");
+        if (res == -3 || res == -4) {
+          pi.er = redecIdentifier;
+          pi.tk = t;
+          return pi;
+        }
+      }
+    }
+  } else {
+    pi.er = idExpected;
+    pi.tk = t;
+    return pi;
+  }
+  // Check for 0 or more commas followed by identifiers
+  t = PeekNextToken();
+  if (t.ec)
+    return (ParserInfo){lexerErr, t};
+  while (t.tp == SYMBOL && !strcmp(t.lx, ",")) {
+    // if next token is a comma then there will be a command then identifier
+    t = GetNextToken();
+    if (t.ec)
+      return (ParserInfo){lexerErr, t};
+    // Eat comma
+    t = GetNextToken();
+    if (t.ec)
+      return (ParserInfo){lexerErr, t};
+    if (t.tp == ID) {
+      if (pass == 1) {
+        int res = insertClassSymbol(manager, t.lx, type_var, kind_var);
+        if (res != 0) {
+          fprintf(stderr, "Error adding symbol to class\n");
+          if (res == -3 || res == -4) {
+            pi.er = redecIdentifier;
+            pi.tk = t;
+            return pi;
+          }
+        }
+      }
+    } else {
+      pi.er = idExpected;
+      pi.tk = t;
+      return pi;
+    }
+    t = PeekNextToken();
+    if (t.ec)
+      return (ParserInfo){lexerErr, t};
+  }
+  // Check for semicolon
+  t = GetNextToken();
+  if (t.ec)
+    return (ParserInfo){lexerErr, t};
+  if (t.tp == SYMBOL && !strcmp(t.lx, ";")) {
+    ;
+  } else {
+    pi.er = semicolonExpected;
+    pi.tk = t;
+    return pi;
+  }
+  pi.tk = t;
+  return pi;
 }
 
 // type → int | char | boolean | identifier
-ParserInfo type(SymbolType *type)
-{
-	ParserInfo pi = {0};
-	Token t = GetNextToken();
-	if (t.ec)
-		return (ParserInfo){lexerErr, t};
+ParserInfo type(char *type_var) {
+  ParserInfo pi = {0};
+  Token t = GetNextToken();
+  if (t.ec)
+    return (ParserInfo){lexerErr, t};
 
-	if (t.tp == ID)
-	{
-		*type = TYPE_IDENTIFIER;
-	}
-	else if (t.tp == RESWORD && !strcmp(t.lx, "int"))
-	{
+  if (t.tp == ID) {
+    if (pass >= 1) {
+      if (classExists(manager, t.lx) == 1) {
+        strcpy(type_var, t.lx);
+      } else {
+        pi.er = undecIdentifier;
+        pi.tk = t;
+        return pi;
+      }
+    }
 
-		*type = TYPE_INT;
-	}
-	else if (t.tp == RESWORD && !strcmp(t.lx, "char"))
-	{
-		*type = TYPE_CHAR;
-	}
-	else if (t.tp == RESWORD && !strcmp(t.lx, "boolean"))
-	{
-		*type = TYPE_BOOL;
-	}
-	else
-	{
-		pi.er = illegalType;
-		pi.tk = t;
-		return pi;
-	}
-	pi.tk = t;
-	return pi;
+  } else if (t.tp == RESWORD &&
+             (!strcmp(t.lx, "int") || !strcmp(t.lx, "char") ||
+              !strcmp(t.lx, "boolean"))) {
+    strcpy(type_var, t.lx);
+  } else {
+    pi.er = illegalType;
+    pi.tk = t;
+    return pi;
+  }
+  pi.tk = t;
+  return pi;
 }
 
-// subroutineDeclar → (constructor | function | method) (type|void) identifier (paramList) subroutineBody
-ParserInfo subroutineDeclar()
-{
-	ParserInfo pi = {0};
-	SymbolKind kind_var;
-	SymbolType type_var;
+// subroutineDeclar → (constructor | function | method) (type|void) identifier
+// (paramList) subroutineBody
+ParserInfo subroutineDeclar() {
+  ParserInfo pi = {0};
+  char type_var[128] = {0};
+  char kind_var[128] = {0};
 
-	// (constructor | function | method))
-	Token t = GetNextToken();
-	if (t.ec)
-		return (ParserInfo){lexerErr, t};
+  // (constructor | function | method))
+  Token t = GetNextToken();
+  if (t.ec)
+    return (ParserInfo){lexerErr, t};
 
-	if (t.tp == RESWORD && !strcmp(t.lx, "constructor"))
-	{
-		kind_var = KIND_CONSTRUCTOR;
-	}
-	else if (t.tp == RESWORD && !strcmp(t.lx, "function"))
-	{
-		kind_var = KIND_FUNCTION;
-	}
-	else if (t.tp == RESWORD && !strcmp(t.lx, "method"))
-	{
-		kind_var = KIND_METHOD;
-	}
-	else
-	{
+  if (t.tp == RESWORD &&
+      (!strcmp(t.lx, "constructor") || !strcmp(t.lx, "function") ||
+       !strcmp(t.lx, "method"))) {
+    strcpy(kind_var, t.lx);
+  } else {
 
-		pi.er = subroutineDeclarErr;
-		pi.tk = t;
-		return pi;
-	}
-	// (type|void)
+    pi.er = subroutineDeclarErr;
+    pi.tk = t;
+    return pi;
+  }
+  // (type|void)
 
-	t = PeekNextToken();
-	if (t.ec)
-		return (ParserInfo){lexerErr, t};
+  t = PeekNextToken();
+  if (t.ec)
+    return (ParserInfo){lexerErr, t};
 
-	if (t.tp == RESWORD && !strcmp(t.lx, "void"))
-	{
-		// eat void
-		t = GetNextToken();
-		if (t.ec)
-			return (ParserInfo){lexerErr, t};
-		type_var = TYPE_VOID;
-	}
+  if (t.tp == RESWORD && !strcmp(t.lx, "void")) {
+    // eat void
+    t = GetNextToken();
+    if (t.ec)
+      return (ParserInfo){lexerErr, t};
+    strcpy(type_var, t.lx);
+  }
 
-	else
-	{
+  else {
+    pi = type(type_var);
+    if (pi.er != none) {
+      return pi;
+    }
+  }
+  // identifier
+  char subroutineName[128] = {0};
+  t = GetNextToken();
+  if (t.ec)
+    return (ParserInfo){lexerErr, t};
 
-		pi = type(&type_var);
-		if (pi.er != none)
-		{
-			return pi;
-		}
-	}
-	// identifier
-	t = GetNextToken();
-	if (t.ec)
-		return (ParserInfo){lexerErr, t};
+  if (t.tp == ID) {
+    if (pass == 1) {
+      int res = insertSubroutine(manager, kind_var, type_var, t.lx);
+      if (res < 0) {
+        fprintf(stderr, "Error adding symbol to subroutine err code:%d\n", res);
+        if (res == -3 || res == -4) {
+          pi.er = redecIdentifier;
+          pi.tk = t;
+          return pi;
+        }
+      }
+    } else if (pass > 1) {
+      setCurrentSubroutine(manager, t.lx);
+      strcpy(subroutineName, t.lx);
+    }
+  } else {
+    pi.er = idExpected;
+    pi.tk = t;
+    return pi;
+  }
 
-	if (t.tp == ID)
-	{
-		if (pass == 1)
-		{
-			startSubroutine(manager, t.lx, type_var, kind_var);
-			int i = manager->currentClass->subroutineCount - 1;
-			manager->currentClass->subroutines[i].kind = kind_var;
-			manager->currentClass->subroutines[i].type = type_var;
-		}
-		else if (pass > 1)
-		{
-			switchSubroutine(manager, t.lx);
-		}
-		if (pass == 3)
-		{
-			writeFunction(manager->currentClass->name, t.lx, manager->currentSubroutine->localCount);
-			if (kind_var == KIND_CONSTRUCTOR)
-			{
-				writePush("constant", manager->currentClass->fieldCount);
-				writeCall("Memory", "alloc", 1);
-				writePop("pointer", 0);
-			}
-		}
-	}
-	else
-	{
-		pi.er = idExpected;
-		pi.tk = t;
-		return pi;
-	}
+  // (paramList) with brackets at characterse
+  t = GetNextToken();
+  if (t.ec)
+    return (ParserInfo){lexerErr, t};
 
-	// (paramList) with brackets at characterse
-	t = GetNextToken();
-	if (t.ec)
-		return (ParserInfo){lexerErr, t};
+  if (t.tp == SYMBOL && !strcmp(t.lx, "(")) {
+    ;
+  } else {
+    pi.er = openParenExpected;
+    pi.tk = t;
+    return pi;
+  }
+  pi = paramList();
+  if (pi.er != none) {
+    return pi;
+  }
+  // closing bracket
 
-	if (t.tp == SYMBOL && !strcmp(t.lx, "("))
-	{
-		;
-	}
-	else
-	{
-		pi.er = openParenExpected;
-		pi.tk = t;
-		return pi;
-	}
-	pi = paramList();
-	if (pi.er != none)
-	{
-		return pi;
-	}
-	// closing bracket
+  t = GetNextToken();
+  if (t.ec)
+    return (ParserInfo){lexerErr, t};
+  if (t.tp == SYMBOL && !strcmp(t.lx, ")")) {
+    ;
+  } else {
 
-	t = GetNextToken();
-	if (t.ec)
-		return (ParserInfo){lexerErr, t};
-	if (t.tp == SYMBOL && !strcmp(t.lx, ")"))
-	{
-		if (pass == 1)
-		{
-			endSubroutine(manager);
-		}
-	}
-	else
-	{
+    pi.er = closeParenExpected;
+    pi.tk = t;
+    return pi;
+  }
 
-		pi.er = closeParenExpected;
-		pi.tk = t;
-		return pi;
-	}
+  if (pass == 3) {
+    writeFunction(manager->currentClass->name, subroutineName,
+                  manager->currentSubroutine->localCount);
+    if (strcmp(kind_var, "constructor") == 0) {
+      int fieldCount = manager->currentClass->fieldCount;
+      writePush("constant", fieldCount);
+      writeCall("Memory", "alloc", 1);
+      writePop("pointer", 0);
+    }
+    if (strcmp(kind_var, "method") == 0) {
+      writePush("argument", 0);
+      writePop("pointer", 0);
+    }
+  }
 
-	// subroutineBody
-	pi = subroutineBody();
-	if (pi.er != none)
-	{
-		return pi;
-	}
-	pi.tk = t;
-	return pi;
+  // subroutineBody
+  pi = subroutineBody();
+  if (pi.er != none) {
+    return pi;
+  }
+  clearCurrentSubroutine(manager);
+  pi.tk = t;
+  return pi;
 }
 
 // paramList → type identifier {, type identifier} | ε
-ParserInfo paramList()
-{
-	ParserInfo pi = {0};
-	SymbolType type_var;
-	char className[128];
-	char *subroutineName;
-	// char className[128];
-	// check if paramList is empty
-	Token t = PeekNextToken();
-	if (t.ec)
-		return (ParserInfo){lexerErr, t};
-	// check if next token is going to be type or if it is empty
-	if (t.tp == ID || (t.tp == RESWORD && (!strcmp(t.lx, "int") || !strcmp(t.lx, "char") || !strcmp(t.lx, "boolean"))))
-	{
-		// check for type
-		t = PeekNextToken();
-		pi = type(&type_var);
-		if (pi.er != none)
-		{
-			return pi;
-		}
-		strncpy(className, t.lx, sizeof(t.lx));
-		// check for indentifier
-		t = GetNextToken();
-		if (t.ec)
-			return (ParserInfo){lexerErr, t};
-		if (t.tp == ID)
-		{
-			if (pass == 1)
-			{
-				if (type_var == TYPE_IDENTIFIER)
-				{
+ParserInfo paramList() {
+  ParserInfo pi = {0};
+  char type_var[128] = {0};
+  Token t = PeekNextToken();
+  if (t.ec)
+    return (ParserInfo){lexerErr, t};
+  // check if next token is going to be type or if it is empty
+  if (t.tp == ID ||
+      (t.tp == RESWORD && (!strcmp(t.lx, "int") || !strcmp(t.lx, "char") ||
+                           !strcmp(t.lx, "boolean")))) {
+    // check for type
+    t = PeekNextToken();
+    pi = type(type_var);
+    if (pi.er != none) {
+      return pi;
+    }
+    // check for indentifier
+    t = GetNextToken();
+    if (t.ec)
+      return (ParserInfo){lexerErr, t};
+    if (t.tp == ID) {
+      if (pass == 1) {
+        int res = insertSubroutineSymbol(manager, t.lx, type_var, "argument",
+                                         manager->currentSubroutine->name);
+        if (res < 0) {
+          fprintf(stderr, "Error adding symbol to subroutine err code:%d\n",
+                  res);
+          if (res == -3 || res == -4) {
+            pi.er = redecIdentifier;
+            pi.tk = t;
+            return pi;
+          }
+        }
+      }
+    } else {
+      pi.tk = t;
+      pi.er = idExpected;
+      return pi;
+    }
 
-					subroutineName = NULL;
-				}
-				else
-				{
-					strncpy(className, manager->currentClass->name, sizeof(manager->currentClass->name));
-					subroutineName = NULL;
-				}
-				insertSymbol(manager, t.lx, type_var, KIND_ARGUMENT, className, subroutineName);
-			}
-		}
-		else
-		{
-			pi.tk = t;
-			pi.er = idExpected;
-			return pi;
-		}
+    // check for 0 or more , type identifier
+    t = PeekNextToken();
+    if (t.ec)
+      return (ParserInfo){lexerErr, t};
+    while (t.tp == SYMBOL && !strcmp(t.lx, ",")) {
+      t = GetNextToken();
+      if (t.ec)
+        return (ParserInfo){lexerErr, t};
+      // eat the comma
+      t = PeekNextToken();
+      pi = type(type_var);
+      if (pi.er != none) {
+        return pi;
+      }
+      t = GetNextToken();
+      if (t.ec)
+        return (ParserInfo){lexerErr, t};
+      if (t.tp == ID) {
+        if (pass == 1) {
+          int res = insertSubroutineSymbol(manager, t.lx, type_var, "argument",
+                                           manager->currentSubroutine->name);
+          if (res < 0) {
+            fprintf(stderr, "Error adding symbol to subroutine err code:%d\n",
+                    res);
+            if (res == -3 || res == -4) {
+              pi.er = redecIdentifier;
+              pi.tk = t;
+              return pi;
+            }
+          }
+        }
+      } else {
+        pi.tk = t;
+        pi.er = idExpected;
+        return pi;
+      }
+      t = PeekNextToken();
+      if (t.ec)
+        return (ParserInfo){lexerErr, t};
+    }
+  }
 
-		// check for 0 or more , type identifier
-		t = PeekNextToken();
-		if (t.ec)
-			return (ParserInfo){lexerErr, t};
-		while (t.tp == SYMBOL && !strcmp(t.lx, ","))
-		{
-			t = GetNextToken();
-			if (t.ec)
-				return (ParserInfo){lexerErr, t};
-			// eat the comma
-			t = PeekNextToken();
-			pi = type(&type_var);
-			if (pi.er != none)
-			{
-				return pi;
-			}
-			strncpy(className, t.lx, sizeof(t.lx));
-			t = GetNextToken();
-			if (t.ec)
-				return (ParserInfo){lexerErr, t};
-			if (t.tp == ID)
-			{
-				if (pass == 1)
-				{
-					if (type_var == TYPE_IDENTIFIER)
-					{
-
-						subroutineName = NULL;
-					}
-					else
-					{
-						strncpy(className, manager->currentClass->name, sizeof(manager->currentClass->name));
-						subroutineName = NULL;
-					}
-					insertSymbol(manager, t.lx, type_var, KIND_ARGUMENT, className, subroutineName);
-				}
-			}
-			else
-			{
-				pi.tk = t;
-				pi.er = idExpected;
-				return pi;
-			}
-			t = PeekNextToken();
-			if (t.ec)
-				return (ParserInfo){lexerErr, t};
-		}
-	}
-
-	pi.tk = t;
-	return pi;
+  pi.tk = t;
+  return pi;
 }
 
 // subroutineBody → { {statement} }
-ParserInfo subroutineBody()
-{
+ParserInfo subroutineBody() {
 
-	ParserInfo pi = {0};
-	Token t = GetNextToken();
-	if (t.ec)
-		return (ParserInfo){lexerErr, t};
-	if (t.tp == SYMBOL && !strcmp(t.lx, "{"))
-	{
-		;
-	}
-	else
-	{
-		pi.er = openBraceExpected;
-		pi.tk = t;
-		return pi;
-	}
+  ParserInfo pi = {0};
+  Token t = GetNextToken();
+  if (t.ec)
+    return (ParserInfo){lexerErr, t};
+  if (t.tp == SYMBOL && !strcmp(t.lx, "{")) {
+    ;
+  } else {
+    pi.er = openBraceExpected;
+    pi.tk = t;
+    return pi;
+  }
 
-	t = PeekNextToken();
-	if (t.ec)
-		return (ParserInfo){lexerErr, t};
-	while (t.tp != SYMBOL && strcmp(t.lx, "}"))
-	{
-		pi = statement();
-		if (pi.er != none)
-		{
-			return pi;
-		}
-		t = PeekNextToken();
-		if (t.ec)
-			return (ParserInfo){lexerErr, t};
-	}
+  t = PeekNextToken();
+  if (t.ec)
+    return (ParserInfo){lexerErr, t};
+  while (t.tp != SYMBOL && strcmp(t.lx, "}")) {
+    pi = statement();
+    if (pi.er != none) {
+      return pi;
+    }
+    t = PeekNextToken();
+    if (t.ec)
+      return (ParserInfo){lexerErr, t};
+  }
 
-	t = GetNextToken();
-	if (t.ec)
-		return (ParserInfo){lexerErr, t};
-	if (t.tp == SYMBOL && !strcmp(t.lx, "}"))
-	{
-		;
-	}
-	else
-	{
-		pi.er = closeBraceExpected;
-		pi.tk = t;
-		return pi;
-	}
-	pi.tk = t;
-	return pi;
+  t = GetNextToken();
+  if (t.ec)
+    return (ParserInfo){lexerErr, t};
+  if (t.tp == SYMBOL && !strcmp(t.lx, "}")) {
+    ;
+  } else {
+    pi.er = closeBraceExpected;
+    pi.tk = t;
+    return pi;
+  }
+  pi.tk = t;
+  return pi;
 }
 
 // Statement grammar
 
-// statement → varDeclarStatement | letStatemnt | ifStatement | whileStatement | doStatement | returnStatemnt
-ParserInfo statement()
-{
-	ParserInfo pi = {0};
-	Token t = PeekNextToken();
-	if (t.ec)
-		return (ParserInfo){lexerErr, t};
+// statement → varDeclarStatement | letStatemnt | ifStatement | whileStatement |
+// doStatement | returnStatemnt
+ParserInfo statement() {
+  ParserInfo pi = {0};
+  Token t = PeekNextToken();
+  if (t.ec)
+    return (ParserInfo){lexerErr, t};
 
-	// all are type RESWORD
+  // all are type RESWORD
 
-	// varDeclar
-	if (t.tp == RESWORD && !strcmp(t.lx, "var"))
-	{
-		pi = varDeclarStatement();
-		if (pi.er != none)
-		{
-			return pi;
-		}
-	}
+  // varDeclar
+  if (t.tp == RESWORD && !strcmp(t.lx, "var")) {
+    pi = varDeclarStatement();
+    if (pi.er != none) {
+      return pi;
+    }
+  }
 
-	// let
-	else if (t.tp == RESWORD && !strcmp(t.lx, "let"))
-	{
-		pi = letStatement();
-		if (pi.er != none)
-		{
-			return pi;
-		}
-	}
-	// if
-	else if (t.tp == RESWORD && !strcmp(t.lx, "if"))
-	{
-		pi = ifStatement();
-		if (pi.er != none)
-		{
-			return pi;
-		}
-	}
-	// while
-	else if (t.tp == RESWORD && !strcmp(t.lx, "while"))
-	{
-		pi = whileStatement();
-		if (pi.er != none)
-		{
-			return pi;
-		}
-	}
-	// do
-	else if (t.tp == RESWORD && !strcmp(t.lx, "do"))
-	{
-		pi = doStatement();
-		if (pi.er != none)
-		{
-			return pi;
-		}
-	}
-	// return
-	else if (t.tp == RESWORD && !strcmp(t.lx, "return"))
-	{
-		pi = returnStatement();
-		if (pi.er != none)
-		{
-			return pi;
-		}
-	}
-	else
-	{
-		pi.tk = t;
-		// probably not correct error
-		pi.er = syntaxError;
-		return pi;
-	}
-	pi.tk = t;
-	return pi;
+  // let
+  else if (t.tp == RESWORD && !strcmp(t.lx, "let")) {
+    pi = letStatement();
+    if (pi.er != none) {
+      return pi;
+    }
+  }
+  // if
+  else if (t.tp == RESWORD && !strcmp(t.lx, "if")) {
+    pi = ifStatement();
+    if (pi.er != none) {
+      return pi;
+    }
+  }
+  // while
+  else if (t.tp == RESWORD && !strcmp(t.lx, "while")) {
+    pi = whileStatement();
+    if (pi.er != none) {
+      return pi;
+    }
+  }
+  // do
+  else if (t.tp == RESWORD && !strcmp(t.lx, "do")) {
+    pi = doStatement();
+    if (pi.er != none) {
+      return pi;
+    }
+  }
+  // return
+  else if (t.tp == RESWORD && !strcmp(t.lx, "return")) {
+    pi = returnStatement();
+    if (pi.er != none) {
+      return pi;
+    }
+  } else {
+    pi.tk = t;
+    // probably not correct error
+    pi.er = syntaxError;
+    return pi;
+  }
+  pi.tk = t;
+  return pi;
 }
 
 // varDeclarStatement → var type identifier { , identifier } ;
-ParserInfo varDeclarStatement()
-{
+ParserInfo varDeclarStatement() {
 
-	ParserInfo pi = {0};
-	SymbolKind kind_var = KIND_LOCAL;
-	SymbolType type_var;
-	char className[128];
-	char *subroutineName;
-	Token t = GetNextToken();
-	if (t.ec)
-		return (ParserInfo){lexerErr, t};
-	if (t.tp == RESWORD && !strcmp(t.lx, "var"))
-	{
-		;
-	}
-	else
-	{
-		pi.tk = t;
-		pi.er = syntaxError;
-		return pi;
-	}
-	t = PeekNextToken();
-	pi = type(&type_var);
-	if (pi.er != none)
-	{
-		return pi;
-	}
-	// Find what the type is
-	strncpy(className, t.lx, sizeof(t.lx));
-	t = GetNextToken();
-	if (t.ec)
-		return (ParserInfo){lexerErr, t};
+  ParserInfo pi = {0};
+  char type_var[128] = {0};
+  Token t = GetNextToken();
+  if (t.ec)
+    return (ParserInfo){lexerErr, t};
+  if (t.tp == RESWORD && !strcmp(t.lx, "var")) {
+    ;
+  } else {
+    pi.tk = t;
+    pi.er = syntaxError;
+    return pi;
+  }
+  t = PeekNextToken();
+  pi = type(type_var);
+  if (pi.er != none) {
+    return pi;
+  }
+  // Find what the type is
+  t = GetNextToken();
+  if (t.ec)
+    return (ParserInfo){lexerErr, t};
 
-	if (t.tp == ID)
-	{
-		if (pass == 2)
-		{
-			if (lookupSymbolInSubroutine(manager->currentSubroutine, t.lx) != NULL)
-			{
-				pi.er = redecIdentifier;
-				pi.tk = t;
-				return pi;
-			}
-			if (type_var == TYPE_IDENTIFIER)
-			{
-				// className = t.lx;
-				subroutineName = NULL;
-			}
-			else
-			{
-				strncpy(className, manager->currentClass->name, sizeof(manager->currentClass->name));
-				subroutineName = NULL;
-			}
+  if (t.tp == ID) {
+    if (pass == 1) {
+      int res = insertSubroutineSymbol(manager, t.lx, type_var, "local",
+                                       manager->currentSubroutine->name);
+      if (res < 0) {
+        fprintf(stderr, "Error adding symbol to subroutine err code:%d\n", res);
+        if (res == -3 || res == -4) {
+          pi.er = redecIdentifier;
+          pi.tk = t;
+          return pi;
+        }
+      }
+    }
+  }
+  t = PeekNextToken();
+  if (t.ec)
+    return (ParserInfo){lexerErr, t};
+  while (t.tp == SYMBOL && !strcmp(t.lx, ",")) {
+    // if next token is a comma then there will be a command then identifier
 
-			insertSymbol(manager, t.lx, type_var, KIND_LOCAL, className, subroutineName);
-		}
-	}
-	t = PeekNextToken();
-	if (t.ec)
-		return (ParserInfo){lexerErr, t};
-	while (t.tp == SYMBOL && !strcmp(t.lx, ","))
-	{
-		// if next token is a comma then there will be a command then identifier
+    t = GetNextToken();
+    if (t.ec)
+      return (ParserInfo){lexerErr, t};
 
-		t = GetNextToken();
-		if (t.ec)
-			return (ParserInfo){lexerErr, t};
+    // Eat comma
+    t = GetNextToken();
+    if (t.ec)
+      return (ParserInfo){lexerErr, t};
+    if (t.tp == ID) {
+      if (pass == 1) {
+        int res = insertSubroutineSymbol(manager, t.lx, type_var, "local",
+                                         manager->currentSubroutine->name);
+        if (res < 0) {
+          fprintf(stderr, "Error adding symbol to subroutine err code:%d\n",
+                  res);
+          if (res == -3 || res == -4) {
+            pi.er = redecIdentifier;
+            pi.tk = t;
+            return pi;
+          }
+        }
+      }
+    } else {
+      pi.er = idExpected;
+      pi.tk = t;
+      return pi;
+    }
+    t = PeekNextToken();
+    if (t.ec)
+      return (ParserInfo){lexerErr, t};
+  }
 
-		// Eat comma
-		t = GetNextToken();
-		if (t.ec)
-			return (ParserInfo){lexerErr, t};
-		if (t.tp == ID)
-		{
-			if (pass == 2)
-			{
-				if (lookupSymbolInSubroutine(manager->currentSubroutine, t.lx) != NULL)
-				{
-					pi.er = redecIdentifier;
-					pi.tk = t;
-					return pi;
-				}
-				insertSymbol(manager, t.lx, type_var, KIND_LOCAL, className, subroutineName);
-			}
-		}
-		else
-		{
-			pi.er = idExpected;
-			pi.tk = t;
-			return pi;
-		}
-		t = PeekNextToken();
-		if (t.ec)
-			return (ParserInfo){lexerErr, t};
-	}
+  // check for semicolon
+  t = GetNextToken();
+  if (t.ec)
+    return (ParserInfo){lexerErr, t};
 
-	// check for semicolon
-	t = GetNextToken();
-	if (t.ec)
-		return (ParserInfo){lexerErr, t};
-
-	if (t.tp == SYMBOL && !strcmp(t.lx, ";"))
-	{
-		;
-	}
-	else
-	{
-		pi.er = semicolonExpected;
-		pi.tk = t;
-		return pi;
-	}
-	pi.tk = t;
-	return pi;
+  if (t.tp == SYMBOL && !strcmp(t.lx, ";")) {
+    ;
+  } else {
+    pi.er = semicolonExpected;
+    pi.tk = t;
+    return pi;
+  }
+  pi.tk = t;
+  return pi;
 }
 
 // letStatemnt → let identifier [ [ expression ] ] = expression ;
-ParserInfo letStatement()
-{
-	ParserInfo pi = {0};
-	int scopeLevel = -1;
-	Symbol *symbol = NULL;
-	Token t = GetNextToken();
+ParserInfo letStatement() {
+  ParserInfo pi = {0};
+  Token t = GetNextToken();
+  int isArrayAsignment = 0;
+  char varName[128] = {0};
+  Symbol *symbol = NULL;
+  char outKind[128] = {0};
 
-	if (t.ec)
-		return (ParserInfo){lexerErr, t};
+  if (t.ec)
+    return (ParserInfo){lexerErr, t};
 
-	// Check for 'let' keyword
-	if (!(t.tp == RESWORD && !strcmp(t.lx, "let")))
-	{
-		pi.er = syntaxError;
-		pi.tk = t;
-		return pi;
-	}
+  // Check for 'let' keyword
+  if (!(t.tp == RESWORD && !strcmp(t.lx, "let"))) {
+    pi.er = syntaxError;
+    pi.tk = t;
+    return pi;
+  }
 
-	// Get identifier
-	t = GetNextToken();
-	if (t.ec)
-		return (ParserInfo){lexerErr, t};
-	if (t.tp != ID)
-	{
-		pi.er = idExpected;
-		pi.tk = t;
-		return pi;
-	}
+  // Get identifier
+  t = GetNextToken();
+  if (t.ec)
+    return (ParserInfo){lexerErr, t};
+  if (t.tp != ID) {
+    pi.er = idExpected;
+    pi.tk = t;
+    return pi;
+  }
 
-	// Symbol table lookup
-	if (pass >= 2)
-	{
-		if (manager->currentSubroutine != NULL)
-		{
-			if ((symbol = lookupSymbolInSubroutine(manager->currentSubroutine, t.lx)))
-			{
-				scopeLevel = 2; // Local/argument
-			}
-			else if ((symbol = lookupSymbolInClass(manager, manager->currentClass->name, t.lx)))
-			{
-				scopeLevel = 1; // Field/static
-			}
-			else
-			{
-				pi.er = undecIdentifier;
-				pi.tk = t;
-				return pi;
-			}
-		}
-	}
+  strcpy(varName, t.lx);
 
-	// Handle array access [expression]
-	int isArrayAccess = 0;
-	t = PeekNextToken();
-	if (t.ec)
-		return (ParserInfo){lexerErr, t};
-	if (t.tp == SYMBOL && !strcmp(t.lx, "["))
-	{
-		isArrayAccess = 1;
-		t = GetNextToken(); // Consume '['
-		if (t.ec)
-			return (ParserInfo){lexerErr, t};
+  if (pass >= 2) {
+    symbol = lookUpSymbol(manager, varName, manager->currentSubroutine->name,
+                          outKind);
+    if (strcmp(outKind, "invalid") == 0 || strcmp(outKind, "not_found") == 0) {
+      pi.er = undecIdentifier;
+      pi.tk = t;
+      return pi;
+    }
+  }
+  t = PeekNextToken();
+  if (t.ec)
+    return (ParserInfo){lexerErr, t};
+  if (t.tp == SYMBOL && !strcmp(t.lx, "[")) {
+    isArrayAsignment = 1;
+    t = GetNextToken(); // Consume '['
+    if (t.ec)
+      return (ParserInfo){lexerErr, t};
 
-		pi = expression();
-		if (pi.er != none)
-			return pi;
+    if (pass == 3) {
+      // printf("outkind: %s\n", outKind);
+      // printf("symbol kind: %s addr: %d\n", symbol->kind, symbol->address);
+      writePush(symbol->kind, symbol->address);
+    }
 
-		t = GetNextToken(); // Expect ']'
-		if (t.ec)
-			return (ParserInfo){lexerErr, t};
-		if (!(t.tp == SYMBOL && !strcmp(t.lx, "]")))
-		{
-			pi.er = closeBracketExpected;
-			pi.tk = t;
-			return pi;
-		}
+    pi = expression();
+    if (pi.er != none)
+      return pi;
 
-		if (pass == 3)
-		{
-			// For array access, push base address first
-			if (symbol->kind == KIND_LOCAL)
-			{
-				writePush("local", symbol->address);
-			}
-			else if (symbol->kind == KIND_ARGUMENT)
-			{
-				writePush("argument", symbol->address);
-			}
-			else if (symbol->kind == KIND_FIELD)
-			{
-				writePush("this", symbol->address);
-			}
-			else if (symbol->kind == KIND_STATIC)
-			{
-				writePush("static", symbol->address);
-			}
+    if (pass == 3) {
+      writeArithmetic("add");
+    }
 
-			// Add index to base address
-			writeArithmetic("add");
-		}
-	}
+    t = GetNextToken(); // Expect ']'
+    if (t.ec)
+      return (ParserInfo){lexerErr, t};
+    if (!(t.tp == SYMBOL && !strcmp(t.lx, "]"))) {
+      pi.er = closeBracketExpected;
+      pi.tk = t;
+      return pi;
+    }
+  }
 
-	// Check for '='
-	t = GetNextToken();
-	if (t.ec)
-		return (ParserInfo){lexerErr, t};
-	if (!(t.tp == SYMBOL && !strcmp(t.lx, "=")))
-	{
-		pi.er = equalExpected;
-		pi.tk = t;
-		return pi;
-	}
+  // Check for '='
+  t = GetNextToken();
+  if (t.ec)
+    return (ParserInfo){lexerErr, t};
+  if (!(t.tp == SYMBOL && !strcmp(t.lx, "="))) {
+    pi.er = equalExpected;
+    pi.tk = t;
+    return pi;
+  }
 
-	// Handle right-hand side expression
-	pi = expression();
-	if (pi.er != none)
-		return pi;
+  // Handle right-hand side expression
+  pi = expression();
+  if (pi.er != none)
+    return pi;
 
-	// Generate VM code
-	if (pass == 3)
-	{
-		if (isArrayAccess)
-		{
-			// For array assignment: value is on stack, array+index is below it
-			writePop("temp", 0);	// Store value in temp 0
-			writePop("pointer", 1); // Put array+index in THAT
-			writePush("temp", 0);	// Retrieve value
-			writePop("that", 0);	// Store in array[index]
-		}
-		else
-		{
-			// Simple variable assignment
-			if (symbol->kind == KIND_LOCAL)
-			{
-				writePop("local", symbol->address);
-			}
-			else if (symbol->kind == KIND_ARGUMENT)
-			{
-				writePop("argument", symbol->address);
-			}
-			else if (symbol->kind == KIND_FIELD)
-			{
-				writePop("this", symbol->address);
-			}
-			else if (symbol->kind == KIND_STATIC)
-			{
-				writePop("static", symbol->address);
-			}
-		}
-	}
+  if (pass == 3) {
+    if (isArrayAsignment) {
+      writePop("temp", 0);
+      writePop("pointer", 1);
+      writePush("temp", 0);
+      writePop("that", 0);
+    } else {
 
-	// Check for ';'
-	t = GetNextToken();
-	if (t.ec)
-		return (ParserInfo){lexerErr, t};
-	if (!(t.tp == SYMBOL && !strcmp(t.lx, ";")))
-	{
-		pi.er = semicolonExpected;
-		pi.tk = t;
-		return pi;
-	}
+      writePop(symbol->kind, symbol->address);
+    }
+  }
 
-	pi.tk = t;
-	return pi;
+  // Check for ';'
+  t = GetNextToken();
+  if (t.ec)
+    return (ParserInfo){lexerErr, t};
+  if (!(t.tp == SYMBOL && !strcmp(t.lx, ";"))) {
+    pi.er = semicolonExpected;
+    pi.tk = t;
+    return pi;
+  }
+
+  pi.tk = t;
+  return pi;
 }
 
 // ifStatement → if ( expression ) { {statement} } [else { {statement} }]
-ParserInfo ifStatement()
-{
-	ParserInfo pi = {0};
-	Token t = GetNextToken();
-	if (t.ec)
-		return (ParserInfo){lexerErr, t};
-	if (t.tp == RESWORD && !strcmp(t.lx, "if"))
-	{
-		;
-	}
-	else
-	{
-		pi.er = syntaxError;
-		pi.tk = t;
-		return pi;
-	}
-	// check for (
-	t = GetNextToken();
-	if (t.ec)
-		return (ParserInfo){lexerErr, t};
-	if (t.tp == SYMBOL && !strcmp(t.lx, "("))
-	{
-		;
-	}
-	else
-	{
-		pi.er = openParenExpected;
-		pi.tk = t;
-		return pi;
-	}
-	// check for expression
-	pi = expression();
-	if (pi.er != none)
-	{
-		return pi;
-	}
-	// check for )
-	t = GetNextToken();
-	if (t.ec)
-		return (ParserInfo){lexerErr, t};
-	if (t.tp == SYMBOL && !strcmp(t.lx, ")"))
-	{
-		;
-	}
-	else
-	{
-		pi.er = closeParenExpected;
-		pi.tk = t;
-		return pi;
-	}
-	// check for {
-	t = GetNextToken();
-	if (t.ec)
-		return (ParserInfo){lexerErr, t};
-	if (t.tp == SYMBOL && !strcmp(t.lx, "{"))
-	{
-		;
-	}
-	else
-	{
-		pi.er = openBraceExpected;
-		pi.tk = t;
-		return pi;
-	}
-	// check for 0 or more statements
-	t = PeekNextToken();
-	if (t.ec)
-		return (ParserInfo){lexerErr, t};
-	while (t.tp != SYMBOL && strcmp(t.lx, "}"))
-	{
-		pi = statement();
-		if (pi.er != none)
-		{
-			return pi;
-		}
-		t = PeekNextToken();
-		if (t.ec)
-			return (ParserInfo){lexerErr, t};
-	}
-	// check for }
-	t = GetNextToken();
-	if (t.ec)
-		return (ParserInfo){lexerErr, t};
-	if (t.tp == SYMBOL && !strcmp(t.lx, "}"))
-	{
-		;
-	}
-	else
-	{
-		pi.er = closeBraceExpected;
-		pi.tk = t;
-		return pi;
-	}
-	// check for else
-	t = PeekNextToken();
-	if (t.ec)
-		return (ParserInfo){lexerErr, t};
-	if (t.tp == RESWORD && !strcmp(t.lx, "else"))
-	{
-		t = GetNextToken();
-		if (t.ec)
-			return (ParserInfo){lexerErr, t};
-		// eat else
-		t = GetNextToken();
-		if (t.ec)
-			return (ParserInfo){lexerErr, t};
-		if (t.tp == SYMBOL && !strcmp(t.lx, "{"))
-		{
-			;
-		}
-		else
-		{
-			pi.er = openBraceExpected;
-			pi.tk = t;
-			return pi;
-		}
-		t = PeekNextToken();
-		if (t.ec)
-			return (ParserInfo){lexerErr, t};
-		while (t.tp != SYMBOL && strcmp(t.lx, "}"))
-		{
-			pi = statement();
-			if (pi.er != none)
-			{
-				return pi;
-			}
-			t = PeekNextToken();
-			if (t.ec)
-				return (ParserInfo){lexerErr, t};
-		}
-		t = GetNextToken();
-		if (t.ec)
-			return (ParserInfo){lexerErr, t};
-		if (t.tp == SYMBOL && !strcmp(t.lx, "}"))
-		{
-			;
-		}
-		else
-		{
-			pi.tk = t;
-			pi.er = closeBraceExpected;
-			return pi;
-		}
-	}
-	pi.tk = t;
-	return pi;
+ParserInfo ifStatement() {
+  ParserInfo pi = {0};
+  Token t = GetNextToken();
+  static int ifLabelCounter = 0;
+
+  if (t.ec)
+    return (ParserInfo){lexerErr, t};
+
+  if (!(t.tp == RESWORD && !strcmp(t.lx, "if"))) {
+    pi.er = syntaxError;
+    pi.tk = t;
+    return pi;
+  }
+
+  // check for (
+  t = GetNextToken();
+  if (t.ec)
+    return (ParserInfo){lexerErr, t};
+  if (!(t.tp == SYMBOL && !strcmp(t.lx, "("))) {
+    pi.er = openParenExpected;
+    pi.tk = t;
+    return pi;
+  }
+
+  // Evaluate condition
+  pi = expression();
+  if (pi.er != none)
+    return pi;
+
+  // check for )
+  t = GetNextToken();
+  if (t.ec)
+    return (ParserInfo){lexerErr, t};
+  if (!(t.tp == SYMBOL && !strcmp(t.lx, ")"))) {
+    pi.er = closeParenExpected;
+    pi.tk = t;
+    return pi;
+  }
+
+  // VM: generate unique labels
+  char trueLabel[64], falseLabel[64], endLabel[64];
+  sprintf(trueLabel, "IF_TRUE%d", ifLabelCounter);
+  sprintf(falseLabel, "IF_FALSE%d", ifLabelCounter);
+  sprintf(endLabel, "IF_END%d", ifLabelCounter);
+  ifLabelCounter++;
+
+  if (pass == 3) {
+    writeIfGoto(trueLabel); // if-goto IF_TRUE
+    writeGoto(falseLabel);  // goto IF_FALSE
+    writeLabel(trueLabel);  // label IF_TRUE
+  }
+
+  // check for {
+  t = GetNextToken();
+  if (t.ec)
+    return (ParserInfo){lexerErr, t};
+  if (!(t.tp == SYMBOL && !strcmp(t.lx, "{"))) {
+    pi.er = openBraceExpected;
+    pi.tk = t;
+    return pi;
+  }
+
+  // then-block statements
+  t = PeekNextToken();
+  if (t.ec)
+    return (ParserInfo){lexerErr, t};
+  while (!(t.tp == SYMBOL && !strcmp(t.lx, "}"))) {
+    pi = statement();
+    if (pi.er != none)
+      return pi;
+    t = PeekNextToken();
+    if (t.ec)
+      return (ParserInfo){lexerErr, t};
+  }
+
+  // consume '}'
+  t = GetNextToken();
+  if (t.ec)
+    return (ParserInfo){lexerErr, t};
+  if (!(t.tp == SYMBOL && !strcmp(t.lx, "}"))) {
+    pi.er = closeBraceExpected;
+    pi.tk = t;
+    return pi;
+  }
+
+  // check for optional else block
+  t = PeekNextToken();
+  if (t.ec)
+    return (ParserInfo){lexerErr, t};
+
+  int hasElse = 0;
+  if (t.tp == RESWORD && !strcmp(t.lx, "else")) {
+    hasElse = 1;
+
+    // consume 'else'
+    t = GetNextToken();
+    if (t.ec)
+      return (ParserInfo){lexerErr, t};
+
+    if (pass == 3) {
+      writeGoto(endLabel);    // goto IF_END
+      writeLabel(falseLabel); // label IF_FALSE
+    }
+
+    // expect '{'
+    t = GetNextToken();
+    if (t.ec)
+      return (ParserInfo){lexerErr, t};
+    if (!(t.tp == SYMBOL && !strcmp(t.lx, "{"))) {
+      pi.er = openBraceExpected;
+      pi.tk = t;
+      return pi;
+    }
+
+    // else-block statements
+    t = PeekNextToken();
+    if (t.ec)
+      return (ParserInfo){lexerErr, t};
+    while (!(t.tp == SYMBOL && !strcmp(t.lx, "}"))) {
+      pi = statement();
+      if (pi.er != none)
+        return pi;
+      t = PeekNextToken();
+      if (t.ec)
+        return (ParserInfo){lexerErr, t};
+    }
+
+    // consume '}'
+    t = GetNextToken();
+    if (t.ec)
+      return (ParserInfo){lexerErr, t};
+    if (!(t.tp == SYMBOL && !strcmp(t.lx, "}"))) {
+      pi.er = closeBraceExpected;
+      pi.tk = t;
+      return pi;
+    }
+  }
+
+  if (pass == 3) {
+    if (!hasElse)
+      writeLabel(falseLabel); // label IF_FALSE if no else
+    else
+      writeLabel(endLabel); // label IF_END
+  }
+
+  pi.tk = t;
+  return pi;
 }
 
 // whileStatement → while ( expression ) { {statement} }
-ParserInfo whileStatement()
-{
-	ParserInfo pi = {0};
-	Token t = GetNextToken();
-	if (t.ec)
-		return (ParserInfo){lexerErr, t};
-	if (t.tp == RESWORD && !strcmp(t.lx, "while"))
-	{
-		;
-	}
-	else
-	{
-		pi.er = syntaxError;
-		pi.tk = t;
-		return pi;
-	}
-	t = GetNextToken();
-	if (t.ec)
-		return (ParserInfo){lexerErr, t};
-	if (t.tp == SYMBOL && !strcmp(t.lx, "("))
-	{
-		;
-	}
-	else
-	{
-		pi.er = openParenExpected;
-		pi.tk = t;
-		return pi;
-	}
-	// check for expression
-	pi = expression();
-	if (pi.er != none)
-	{
-		return pi;
-	}
-	// check for )
-	t = GetNextToken();
-	if (t.ec)
-		return (ParserInfo){lexerErr, t};
-	if (t.tp == SYMBOL && !strcmp(t.lx, ")"))
-	{
-		;
-	}
-	else
-	{
-		pi.er = closeParenExpected;
-		pi.tk = t;
-		return pi;
-	}
-	// check for {
-	t = GetNextToken();
-	if (t.ec)
-		return (ParserInfo){lexerErr, t};
-	if (t.tp == SYMBOL && !strcmp(t.lx, "{"))
-	{
-		;
-	}
-	else
-	{
-		pi.er = openBraceExpected;
-		pi.tk = t;
-		return pi;
-	}
-	// check for 0 or more statements
-	t = PeekNextToken();
-	if (t.ec)
-		return (ParserInfo){lexerErr, t};
-	while (t.tp != SYMBOL && strcmp(t.lx, "}"))
-	{
-		pi = statement();
-		if (pi.er != none)
-		{
-			return pi;
-		}
-		t = PeekNextToken();
-		if (t.ec)
-			return (ParserInfo){lexerErr, t};
-	}
-	// check for }
-	t = GetNextToken();
-	if (t.ec)
-		return (ParserInfo){lexerErr, t};
-	if (t.tp == SYMBOL && !strcmp(t.lx, "}"))
-	{
-		;
-	}
-	else
-	{
-		pi.er = closeBraceExpected;
-		pi.tk = t;
-		return pi;
-	}
-	pi.tk = t;
-	return pi;
+ParserInfo whileStatement() {
+  static int whileLabelCount = 0; // static counter for uniqueness
+  int labelIndex = whileLabelCount++;
+  char whileExpLabel[64], whileEndLabel[64];
+  snprintf(whileExpLabel, sizeof(whileExpLabel), "WHILE_EXP%d", labelIndex);
+  snprintf(whileEndLabel, sizeof(whileEndLabel), "WHILE_END%d", labelIndex);
+
+  ParserInfo pi = {0};
+  Token t = GetNextToken();
+  if (t.ec)
+    return (ParserInfo){lexerErr, t};
+
+  if (!(t.tp == RESWORD && strcmp(t.lx, "while") == 0)) {
+    pi.er = syntaxError;
+    pi.tk = t;
+    return pi;
+  }
+
+  // Write WHILE_EXP label
+  if (pass == 3)
+    writeLabel(whileExpLabel);
+
+  // Expect '('
+  t = GetNextToken();
+  if (t.ec)
+    return (ParserInfo){lexerErr, t};
+  if (!(t.tp == SYMBOL && strcmp(t.lx, "(") == 0)) {
+    pi.er = openParenExpected;
+    pi.tk = t;
+    return pi;
+  }
+
+  // Parse condition
+  pi = expression();
+  if (pi.er != none)
+    return pi;
+
+  // Expect ')'
+  t = GetNextToken();
+  if (t.ec)
+    return (ParserInfo){lexerErr, t};
+  if (!(t.tp == SYMBOL && strcmp(t.lx, ")") == 0)) {
+    pi.er = closeParenExpected;
+    pi.tk = t;
+    return pi;
+  }
+
+  // Negate the condition and jump to WHILE_END if false
+  if (pass == 3) {
+    writeArithmetic("not");     // negate condition
+    writeIfGoto(whileEndLabel); // jump out if false
+  }
+
+  // Expect '{'
+  t = GetNextToken();
+  if (t.ec)
+    return (ParserInfo){lexerErr, t};
+  if (!(t.tp == SYMBOL && strcmp(t.lx, "{") == 0)) {
+    pi.er = openBraceExpected;
+    pi.tk = t;
+    return pi;
+  }
+
+  // Parse loop body
+  t = PeekNextToken();
+  while (!(t.tp == SYMBOL && strcmp(t.lx, "}") == 0)) {
+    pi = statement();
+    if (pi.er != none)
+      return pi;
+    t = PeekNextToken();
+    if (t.ec)
+      return (ParserInfo){lexerErr, t};
+  }
+
+  // Consume '}'
+  t = GetNextToken();
+  if (t.ec)
+    return (ParserInfo){lexerErr, t};
+  if (!(t.tp == SYMBOL && strcmp(t.lx, "}") == 0)) {
+    pi.er = closeBraceExpected;
+    pi.tk = t;
+    return pi;
+  }
+
+  // Jump back to condition and mark end
+  if (pass == 3) {
+    writeGoto(whileExpLabel);  // loop back
+    writeLabel(whileEndLabel); // end of while
+  }
+
+  pi.tk = t;
+  return pi;
 }
 
 // doStatement → do subroutineCall ;
-ParserInfo doStatement()
-{
-	ParserInfo pi = {0};
-	Token t = GetNextToken();
-	if (t.ec)
-		return (ParserInfo){lexerErr, t};
-	if (t.tp == RESWORD && !strcmp(t.lx, "do"))
-	{
-		;
-	}
-	else
-	{
-		pi.er = syntaxError;
-		pi.tk = t;
-		return pi;
-	}
-	// check for subroutineCall
-	pi = subroutineCall();
-	if (pi.er != none)
-	{
-		return pi;
-	}
-	// check for ;
-	t = GetNextToken();
-	if (t.ec)
-		return (ParserInfo){lexerErr, t};
-	if (t.tp == SYMBOL && !strcmp(t.lx, ";"))
-	{
-		;
-	}
-	else
-	{
-		pi.er = semicolonExpected;
-		pi.tk = t;
-		return pi;
-	}
-	pi.tk = t;
-	return pi;
+ParserInfo doStatement() {
+  ParserInfo pi = {0};
+  Token t = GetNextToken();
+  if (t.ec)
+    return (ParserInfo){lexerErr, t};
+  if (t.tp == RESWORD && !strcmp(t.lx, "do")) {
+    ;
+  } else {
+    pi.er = syntaxError;
+    pi.tk = t;
+    return pi;
+  }
+  // check for subroutineCall
+  pi = subroutineCall();
+  if (pi.er != none) {
+    return pi;
+  }
+  // check for ;
+  t = GetNextToken();
+  if (t.ec)
+    return (ParserInfo){lexerErr, t};
+  if (t.tp == SYMBOL && !strcmp(t.lx, ";")) {
+    ;
+  } else {
+    pi.er = semicolonExpected;
+    pi.tk = t;
+    return pi;
+  }
+  pi.tk = t;
+  return pi;
 }
 
 // subroutineCall → identifier [ . identifier ] ( expressionList )
-ParserInfo subroutineCall()
-{
-	int scopeLevel = -1;
-	char className[128];
-	int secondIdentifier = 0;
-	Symbol *symbol;
-	Symbol *secondSymbol;
-	Scope *scope;
-	Token token_1 = {0};
-	Token token_2 = {0};
-	ParserInfo pi = {0};
-	Token t = token_1 = GetNextToken();
-	if (t.ec)
-		return (ParserInfo){lexerErr, t};
-	if (t.tp == ID)
-	{
-		if (pass >= 2)
-		{
-			// if there is not a . then id is a method in that class
-			// this will be the instance of the class so a (local var, or field, or argument)
+ParserInfo subroutineCall() {
+  ParserInfo pi = {0};
+  Token t = GetNextToken();
+  Symbol *firstSymbol = NULL;
+  char className[128] = {0};
+  char subroutineName[128] = {0};
+  char outKind[128] = {0};
+  int pushedThis = 0;
 
-			// if there is a dot and the id is a class name then the subroutine is a function
+  if (t.ec)
+    return (ParserInfo){lexerErr, t};
 
-			// if the is a dot and the id is a field/ or local or argument
-			// for proper scoping check to see if it is a argument
-			// then check local vars
-			// then check fields
-			// the check class names
-			if (manager->currentSubroutine != NULL)
-			{
-				if (symbol = lookupSymbolInSubroutine(manager->currentSubroutine, t.lx))
-				{
-					// It will be defined by a varDeclarStatement
-					// printf("Symbol %s in subroutine %s\n", t.lx, manager->currentSubroutine->name);
-					// printf("2 symbol %s has type %s\n", t.lx, symbol->className);
-					scopeLevel = 2;
-				}
-				else if (symbol = lookupSymbolInClass(manager, manager->currentClass->name, t.lx))
-				{
-					// printf("Symbol %s in class %s\n", t.lx, manager->currentClass->name);
-					// need to find type of symbol
-					// printf("1 symbol %s has type %s\n", t.lx, symbol->className);
-					scopeLevel = 1;
-				}
-				else if (scope = lookupClass(manager, t.lx))
-				{
-					// printf("Symbol %s is class %s\n", t.lx, manager->currentClass->name);
-					scopeLevel = 0;
-				}
-				else
-				{
-					printf("identifier %s not found\n", t.lx);
-					printf("symbol Class name: %s\n", symbol->className);
-					pi.er = undecIdentifier;
-					pi.tk = t;
-					return pi;
-				}
-			}
-		}
-	}
-	else
-	{
-		pi.er = idExpected;
-		pi.tk = t;
-		return pi;
-	}
+  if (t.tp != ID) {
+    return (ParserInfo){idExpected, t};
+  }
 
-	// check for optional . identifier
-	t = PeekNextToken();
-	if (t.ec)
-		return (ParserInfo){lexerErr, t};
-	if (t.tp == SYMBOL && !strcmp(t.lx, "."))
-	{
-		secondIdentifier = 1;
-		t = GetNextToken();
-		if (t.ec)
-			return (ParserInfo){lexerErr, t}; // eat the .
-		t = token_2 = GetNextToken();
-		if (t.ec)
-			return (ParserInfo){lexerErr, t}; // get next token
-		if (t.tp != ID)
-		{
-			pi.er = idExpected;
-			pi.tk = t;
-			return pi;
-		}
-		if (pass >= 2)
-		{
+  if (pass >= 2) {
+    firstSymbol =
+        lookUpSymbol(manager, t.lx, manager->currentSubroutine->name, outKind);
+  }
 
-			switch (scopeLevel)
-			{
-			case 0:
-				if (!(secondSymbol = lookupSymbolInClass(manager, scope->name, t.lx)))
-				{
-					printf("symbol Class name: %s\n", symbol->className);
-					pi.er = undecIdentifier;
-					pi.tk = t;
-					return pi;
-				}
-				break;
-			case 1:
-			case 2:
-				// printf("symbol Class name: (%s) symbol lexeme: (%s), token lexeme: (%s) ScopeLevel %d\n", symbol->className, symbol->lexeme, t.lx, scopeLevel);
-				if (!(secondSymbol = lookupSymbolInClass(manager, symbol->className, t.lx)))
-				{
-					pi.er = undecIdentifier;
-					pi.tk = t;
-					return pi;
-				}
-				break;
-			default:
-				printf("Error\n");
-				break;
-			}
-		}
-	}
-	// check for (
-	t = GetNextToken();
-	if (t.ec)
-		return (ParserInfo){lexerErr, t};
-	if (t.tp == SYMBOL && !strcmp(t.lx, "("))
-	{
-		;
-	}
-	else
-	{
-		pi.er = openParenExpected;
-		pi.tk = t;
-		return pi;
-	}
-	// check for expressionList
-	pi = expressionList();
-	if (pi.er != none)
-	{
-		return pi;
-	}
-	t = GetNextToken();
-	if (t.ec)
-		return (ParserInfo){lexerErr, t};
-	if (t.tp == SYMBOL && !strcmp(t.lx, ")"))
-	{
-		;
-	}
-	else
-	{
-		pi.er = closeParenExpected;
-		pi.tk = t;
-		return pi;
-	}
+  // Peek ahead to check for "."
+  Token dotCheck = PeekNextToken();
+  if (dotCheck.tp == SYMBOL && strcmp(dotCheck.lx, ".") == 0) {
+    // We have a qualified call: identifier.identifier(...)
+    strcpy(className, (firstSymbol && strcmp(outKind, "class") != 0)
+                          ? firstSymbol->type
+                          : t.lx);
+    if (pass == 3 && firstSymbol && strcmp(outKind, "class") != 0) {
+      // It's an object method call — push object
+      writePush(firstSymbol->kind, firstSymbol->address);
+      pushedThis = 1;
+    }
 
-	if (pass == 3)
-	{
+    GetNextToken();     // consume '.'
+    t = GetNextToken(); // subroutine name
+    if (t.ec)
+      return (ParserInfo){lexerErr, t};
+    if (t.tp != ID)
+      return (ParserInfo){idExpected, t};
+    strcpy(subroutineName, t.lx);
+  } else {
+    // No dot — this is a method call in current class (this.method())
+    strcpy(subroutineName, t.lx);
+    if (pass == 3) {
+      writePush("pointer", 0); // push this
+      pushedThis = 1;
+    }
+    strcpy(className, manager->currentClass->name);
+  }
 
-		switch (scopeLevel)
-		{
-		case 0:
-			if (secondIdentifier)
-			{
-				Scope *subroutineScope = getSubroutineScope(manager, scope->name, secondSymbol->lexeme);
-				// printf("%s.%s(", scope->name, secondSymbol->lexeme);
-				// for (int i = 0; i < subroutineScope->argumentCount; i++)
-				// {
-				// 	printf("%s, ", subroutineScope->arguments[i].lexeme);
-				// }
-				// printf(")\n");
-				// printf("%s.%s() tk\n", token_1.lx, token_2.lx);
-				writeCall(scope->name, secondSymbol->lexeme, subroutineScope->argumentCount);
-				Symbol *subroutineSymbol = lookupSymbolInClass(manager, scope->name, secondSymbol->lexeme);
-				if (subroutineSymbol->type == TYPE_VOID)
-				{
-					writePop("temp", 0);
-				}
-			}
-			break;
-		case 1:
-		case 2:
-			if (secondIdentifier)
-			{
-				Scope *subroutineScope = getSubroutineScope(manager, symbol->className, secondSymbol->lexeme);
-				// printf("%s.%s(", symbol->lexeme, secondSymbol->lexeme);
-				// for (int i = 0; i < subroutineScope->argumentCount; i++)
-				// {
-				// 	printf("%s, ", subroutineScope->arguments[i].lexeme);
-				// }
-				// printf(")\n");
+  // Expect "("
+  t = GetNextToken();
+  if (t.ec)
+    return (ParserInfo){lexerErr, t};
+  if (!(t.tp == SYMBOL && !strcmp(t.lx, "("))) {
+    return (ParserInfo){openParenExpected, t};
+  }
 
-				// printf("%s(%s).%s() sym\n", symbol->lexeme, symbol->className, secondSymbol->lexeme);
-				// printf("%s.%s() tk\n", token_1.lx, token_2.lx);
+  // Parse expressionList
+  pi = expressionList();
+  if (pi.er != none)
+    return pi;
 
-				writeCall(symbol->className, secondSymbol->lexeme, subroutineScope->argumentCount);
-				Symbol *subroutineSymbol = lookupSymbolInClass(manager, symbol->className, secondSymbol->lexeme);
-				if (subroutineSymbol->type == TYPE_VOID)
-				{
-					writePop("temp", 0);
-				}
-			}
-			else
-			{
-				// printf("2\n");
-				// printf("%s() sym\n", symbol->lexeme);
-				// printf("%s() tk\n", token_1.lx);
+  // Expect ")"
+  t = GetNextToken();
+  if (t.ec)
+    return (ParserInfo){lexerErr, t};
+  if (!(t.tp == SYMBOL && !strcmp(t.lx, ")"))) {
+    return (ParserInfo){closeParenExpected, t};
+  }
 
-				// COME BACK AND ADD THIS IN VERY IMPORTANT!!!!!
-				// COME BACK AND ADD THIS IN VERY IMPORTANT!!!!!
-				// COME BACK AND ADD THIS IN VERY IMPORTANT!!!!!
-				// COME BACK AND ADD THIS IN VERY IMPORTANT!!!!!
-				// COME BACK AND ADD THIS IN VERY IMPORTANT!!!!!
-			}
-			break;
-		default:
-			printf("something gone wrong\n");
-			break;
-		}
+  // Code generation: call the subroutine
+  if (pass == 3) {
+    Subroutine *subroutine = getSubroutine(manager, className, subroutineName);
+    int totalArgs = subroutine->argumentCount;
+    // if (pushedThis)
+    //   totalArgs++;
+    writeCall(className, subroutineName, totalArgs);
 
-		// if (strcmp(token_2.lx, ""))
-		// {
+    if (strcmp(subroutine->returnType, "void") == 0) {
+      writePop("temp", 0);
+    }
+  }
 
-		// 	if (scopeLevel != 0)
-		// 	{
-		// 		// if token 1 is not a class name
-		// 		// symbol will be set
-		// 		printf("%s(%s).%s()", symbol->lexeme, symbol->className, token_2.lx);
-		// 	}
-		// 	else
-		// 	{
-		// 		printf("token_1 %s token_2 %s\n", token_1.lx, token_2.lx);
-		// 	}
-		// }
-		// else
-		// {
-		// 	printf("token_1 %s\n", token_1.lx);
-		// }
-	}
-
-	pi.tk = t;
-	return pi;
+  pi.tk = t;
+  return pi;
 }
 
 // expressionList → expression { , expression } | ε
-ParserInfo expressionList()
-{
-	ParserInfo pi = {0};
-	Token t = PeekNextToken();
-	if (t.ec)
-		return (ParserInfo){lexerErr, t};
-	if (t.tp == SYMBOL && !strcmp(t.lx, ")"))
-	{
-		// expressionList is empty
-		return pi;
-	}
-	// check for expression
-	pi = expression();
-	if (pi.er != none)
-	{
-		return pi;
-	}
-	// check for 0 or more , expression
-	t = PeekNextToken();
-	if (t.ec)
-		return (ParserInfo){lexerErr, t};
-	while (t.tp == SYMBOL && !strcmp(t.lx, ","))
-	{
-		t = GetNextToken();
-		if (t.ec)
-			return (ParserInfo){lexerErr, t}; // eat the ,
-		pi = expression();
-		if (pi.er != none)
-		{
-			return pi;
-		}
-		t = PeekNextToken();
-		if (t.ec)
-			return (ParserInfo){lexerErr, t};
-	}
-	pi.tk = t;
-	return pi;
+ParserInfo expressionList() {
+  ParserInfo pi = {0};
+  Token t = PeekNextToken();
+  if (t.ec)
+    return (ParserInfo){lexerErr, t};
+  if (t.tp == SYMBOL && !strcmp(t.lx, ")")) {
+    // expressionList is empty
+    return pi;
+  }
+  // check for expression
+  pi = expression();
+  if (pi.er != none) {
+    return pi;
+  }
+  // check for 0 or more , expression
+  t = PeekNextToken();
+  if (t.ec)
+    return (ParserInfo){lexerErr, t};
+  while (t.tp == SYMBOL && !strcmp(t.lx, ",")) {
+    t = GetNextToken();
+    if (t.ec)
+      return (ParserInfo){lexerErr, t}; // eat the ,
+    pi = expression();
+    if (pi.er != none) {
+      return pi;
+    }
+    t = PeekNextToken();
+    if (t.ec)
+      return (ParserInfo){lexerErr, t};
+  }
+  pi.tk = t;
+  return pi;
 }
 
 // returnStatemnt → return [ expression ] ;
-ParserInfo returnStatement()
-{
-	ParserInfo pi = {0};
-	Token t = GetNextToken();
-	if (t.ec)
-		return (ParserInfo){lexerErr, t};
-	if (t.tp == RESWORD && !strcmp(t.lx, "return"))
-	{
-		;
-	}
-	else
-	{
-		pi.er = syntaxError;
-		pi.tk = t;
-		return pi;
-	}
-	// check zero or more expressions
-	t = PeekNextToken();
-	if (t.ec)
-		return (ParserInfo){lexerErr, t};
-	while (t.tp != SYMBOL && strcmp(t.lx, ";"))
-	{
-		pi = expression();
-		if (pi.er != none)
-		{
-			return pi;
-		}
-		t = PeekNextToken();
-		if (t.ec)
-			return (ParserInfo){lexerErr, t};
-	}
-	// check for ;
-	t = GetNextToken();
-	if (t.ec)
-		return (ParserInfo){lexerErr, t};
-	if (t.tp == SYMBOL && !strcmp(t.lx, ";"))
-	{
-		;
-	}
-	else
-	{
-		pi.er = semicolonExpected;
-		pi.tk = t;
-		return pi;
-	}
+ParserInfo returnStatement() {
+  ParserInfo pi = {0};
+  Token t = GetNextToken();
+  if (t.ec)
+    return (ParserInfo){lexerErr, t};
+  if (t.tp == RESWORD && !strcmp(t.lx, "return")) {
+    ;
+  } else {
+    pi.er = syntaxError;
+    pi.tk = t;
+    return pi;
+  }
+  // check zero or more expressions
+  t = PeekNextToken();
+  if (t.ec)
+    return (ParserInfo){lexerErr, t};
+  int hasExpr = 0;
+  while (t.tp != SYMBOL && strcmp(t.lx, ";")) {
+    pi = expression();
+    if (pi.er != none) {
+      return pi;
+    }
+    hasExpr = 1;
+    t = PeekNextToken();
+    if (t.ec)
+      return (ParserInfo){lexerErr, t};
+  }
+  // check for ;
+  t = GetNextToken();
+  if (t.ec)
+    return (ParserInfo){lexerErr, t};
+  if (t.tp == SYMBOL && !strcmp(t.lx, ";")) {
+    ;
+  } else {
+    pi.er = semicolonExpected;
+    pi.tk = t;
+    return pi;
+  }
+  if (pass == 3) {
+    if (!hasExpr) {
+      // void subroutine — push dummy value
+      writePush("constant", 0);
+    }
+    writeReturn();
+  }
 
-	if (pass == 3)
-	{
-		Symbol *symbol = findSubroutineSymbol(manager, manager->currentSubroutine->name);
-		if (symbol->type == TYPE_VOID)
-		{
-			writePush("constant", 0);
-		}
-		writeReturn();
-	}
-
-	pi.tk = t;
-	return pi;
+  pi.tk = t;
+  return pi;
 }
 
 // Expression grammar
 
 // expression → relationalExpression { ( & | | ) relationalExpression }
-ParserInfo expression()
-{
-	char operator[100] = {0};
-	ParserInfo pi = {0};
-	pi = relationalExpression();
-	if (pi.er != none)
-	{
-		return pi;
-	}
-	// check for zero or more "and-ed" or "or-ed" relation Expressions
-	Token t = PeekNextToken();
-	if (t.ec)
-		return (ParserInfo){lexerErr, t};
-	while (t.tp == SYMBOL && (!strcmp(t.lx, "&") || !strcmp(t.lx, "|")))
-	{
-		t = GetNextToken();
-		if (t.ec)
-			return (ParserInfo){lexerErr, t};
-		if (t.tp == SYMBOL && !strcmp(t.lx, "&"))
-		{
-			strcpy(operator, "and");
-		}
-		else if (t.tp == SYMBOL && !strcmp(t.lx, "|"))
-		{
-			strcpy(operator, "or");
-		}
-		else
-		{
-			pi.tk = t;
-			pi.er = syntaxError;
-			return pi;
-		}
-		// Arithmetic Expression
-		pi = ArithmeticExpression();
-		if (pi.er != none)
-		{
-			return pi;
-		}
-		t = PeekNextToken();
-		if (t.ec)
-			return (ParserInfo){lexerErr, t};
-		if (pass == 3 && operator[0] != 0)
-		{
-			writeArithmetic(operator);
-		}
-	}
-	pi.tk = t;
-	return pi;
+ParserInfo expression() {
+  char operator[100] = { 0 };
+  ParserInfo pi = {0};
+  pi = relationalExpression();
+  if (pi.er != none) {
+    return pi;
+  }
+  // check for zero or more "and-ed" or "or-ed" relation Expressions
+  Token t = PeekNextToken();
+  if (t.ec)
+    return (ParserInfo){lexerErr, t};
+  while (t.tp == SYMBOL && (!strcmp(t.lx, "&") || !strcmp(t.lx, "|"))) {
+    t = GetNextToken();
+    if (t.ec)
+      return (ParserInfo){lexerErr, t};
+    if (t.tp == SYMBOL && !strcmp(t.lx, "&")) {
+      strcpy(operator, "and");
+    } else if (t.tp == SYMBOL && !strcmp(t.lx, "|")) {
+      strcpy(operator, "or");
+    } else {
+      pi.tk = t;
+      pi.er = syntaxError;
+      return pi;
+    }
+    // Arithmetic Expression
+    pi = ArithmeticExpression();
+    if (pi.er != none) {
+      return pi;
+    }
+    t = PeekNextToken();
+    if (t.ec)
+      return (ParserInfo){lexerErr, t};
+    if (pass == 3 && operator[0] != 0) {
+      writeArithmetic(operator);
+    }
+  }
+  pi.tk = t;
+  return pi;
 }
 
-// relationalExpression → ArithmeticExpression { ( = | > | < ) ArithmeticExpression }
-ParserInfo relationalExpression()
-{
-	char operator[100] = {0};
-	ParserInfo pi = {0};
-	pi = ArithmeticExpression();
-	if (pi.er != none)
-	{
-		return pi;
-	}
-	// zero or more symbol then expression
-	Token t = PeekNextToken();
-	if (t.ec)
-		return (ParserInfo){lexerErr, t};
-	while (t.tp == SYMBOL && (!strcmp(t.lx, "=") || !strcmp(t.lx, "<") || !strcmp(t.lx, ">")))
-	{
-		t = GetNextToken();
-		if (t.ec)
-			return (ParserInfo){lexerErr, t};
-		if (t.tp == SYMBOL && !strcmp(t.lx, "="))
-		{
-			strcpy(operator, "eq");
-		}
-		else if (t.tp == SYMBOL && !strcmp(t.lx, "<"))
-		{
-			strcpy(operator, "lt");
-		}
-		else if (t.tp == SYMBOL && !strcmp(t.lx, ">"))
-		{
-			strcpy(operator, "gt");
-		}
-		else
-		{
-			pi.tk = t;
-			pi.er = syntaxError;
-			return pi;
-		}
-		// Arithmetic Expression
-		pi = ArithmeticExpression();
-		if (pi.er != none)
-		{
-			return pi;
-		}
-		t = PeekNextToken();
-		if (t.ec)
-			return (ParserInfo){lexerErr, t};
-		if (pass == 3 && operator[0] != 0)
-		{
-			writeArithmetic(operator);
-		}
-	}
-	pi.tk = t;
-	return pi;
+// relationalExpression → ArithmeticExpression { ( = | > | < )
+// ArithmeticExpression }
+ParserInfo relationalExpression() {
+  char operator[100] = { 0 };
+  ParserInfo pi = {0};
+  pi = ArithmeticExpression();
+  if (pi.er != none) {
+    return pi;
+  }
+  // zero or more symbol then expression
+  Token t = PeekNextToken();
+  if (t.ec)
+    return (ParserInfo){lexerErr, t};
+  while (t.tp == SYMBOL &&
+         (!strcmp(t.lx, "=") || !strcmp(t.lx, "<") || !strcmp(t.lx, ">"))) {
+    t = GetNextToken();
+    if (t.ec)
+      return (ParserInfo){lexerErr, t};
+    if (t.tp == SYMBOL && !strcmp(t.lx, "=")) {
+      strcpy(operator, "eq");
+    } else if (t.tp == SYMBOL && !strcmp(t.lx, "<")) {
+      strcpy(operator, "lt");
+    } else if (t.tp == SYMBOL && !strcmp(t.lx, ">")) {
+      strcpy(operator, "gt");
+    } else {
+      pi.tk = t;
+      pi.er = syntaxError;
+      return pi;
+    }
+    // Arithmetic Expression
+    pi = ArithmeticExpression();
+    if (pi.er != none) {
+      return pi;
+    }
+    t = PeekNextToken();
+    if (t.ec)
+      return (ParserInfo){lexerErr, t};
+    if (pass == 3 && operator[0] != 0) {
+      writeArithmetic(operator);
+    }
+  }
+  pi.tk = t;
+  return pi;
 }
 
 // ArithmeticExpression → term { ( + | - ) term }
-ParserInfo ArithmeticExpression()
-{
-	char operator[100] = {0};
-	ParserInfo pi = {0};
-	pi = term();
-	if (pi.er != none)
-	{
-		return pi;
-	}
-	Token t = PeekNextToken();
-	if (t.ec)
-		return (ParserInfo){lexerErr, t};
-	while (t.tp == SYMBOL && (!strcmp(t.lx, "+") || !strcmp(t.lx, "-")))
-	{
-		t = GetNextToken();
-		if (t.ec)
-			return (ParserInfo){lexerErr, t};
-		if (t.tp == SYMBOL && !strcmp(t.lx, "+"))
-		{
-			strcpy(operator, "add");
-		}
-		else if (t.tp == SYMBOL && !strcmp(t.lx, "-"))
-		{
-			strcpy(operator, "sub");
-		}
-		pi = term();
-		if (pi.er != none)
-		{
-			return pi;
-		}
-		t = PeekNextToken();
-		if (t.ec)
-			return (ParserInfo){lexerErr, t};
-		if (pass == 3 && operator[0] != 0)
-		{
-			writeArithmetic(operator);
-		}
-	}
-	pi.tk = t;
-	return pi;
+ParserInfo ArithmeticExpression() {
+  char operator[100] = { 0 };
+  ParserInfo pi = {0};
+  pi = term();
+  if (pi.er != none) {
+    return pi;
+  }
+  Token t = PeekNextToken();
+  if (t.ec)
+    return (ParserInfo){lexerErr, t};
+  while (t.tp == SYMBOL && (!strcmp(t.lx, "+") || !strcmp(t.lx, "-"))) {
+    t = GetNextToken();
+    if (t.ec)
+      return (ParserInfo){lexerErr, t};
+    if (t.tp == SYMBOL && !strcmp(t.lx, "+")) {
+      strcpy(operator, "add");
+    } else if (t.tp == SYMBOL && !strcmp(t.lx, "-")) {
+      strcpy(operator, "sub");
+    }
+    pi = term();
+    if (pi.er != none) {
+      return pi;
+    }
+    t = PeekNextToken();
+    if (t.ec)
+      return (ParserInfo){lexerErr, t};
+    if (pass == 3 && operator[0] != 0) {
+      writeArithmetic(operator);
+    }
+  }
+  pi.tk = t;
+  return pi;
 }
 
 // term → factor { ( * | / ) factor }
-ParserInfo term()
-{
+ParserInfo term() {
 
-	ParserInfo pi = {0};
-	pi = factor();
-	char operation[100];
-	if (pi.er != none)
-	{
-		return pi;
-	}
-	Token t = PeekNextToken();
-	if (t.ec)
-		return (ParserInfo){lexerErr, t};
-	while (t.tp == SYMBOL && (!strcmp(t.lx, "*") || !strcmp(t.lx, "/")))
-	{
-		t = GetNextToken();
-		if (t.ec)
-			return (ParserInfo){lexerErr, t};
-		if (t.tp == SYMBOL && !strcmp(t.lx, "*"))
-		{
-			strcpy(operation, "multiply");
-		}
-		else if (t.tp == SYMBOL && !strcmp(t.lx, "/"))
-		{
-			strcpy(operation, "divide");
-		}
-		pi = factor();
-		if (pi.er != none)
-		{
-			return pi;
-		}
-		t = PeekNextToken();
-		if (t.ec)
-			return (ParserInfo){lexerErr, t};
-		if (pass == 3 && operation[0] != 0)
-		{
-			writeCall("Math", operation, 2);
-		}
-	}
-	pi.tk = t;
-	return pi;
+  ParserInfo pi = {0};
+  pi = factor();
+  char operation[100];
+  if (pi.er != none) {
+    return pi;
+  }
+  Token t = PeekNextToken();
+  if (t.ec)
+    return (ParserInfo){lexerErr, t};
+  while (t.tp == SYMBOL && (!strcmp(t.lx, "*") || !strcmp(t.lx, "/"))) {
+    t = GetNextToken();
+    if (t.ec)
+      return (ParserInfo){lexerErr, t};
+    if (t.tp == SYMBOL && !strcmp(t.lx, "*")) {
+      strcpy(operation, "multiply");
+    } else if (t.tp == SYMBOL && !strcmp(t.lx, "/")) {
+      strcpy(operation, "divide");
+    }
+    pi = factor();
+    if (pi.er != none) {
+      return pi;
+    }
+    t = PeekNextToken();
+    if (t.ec)
+      return (ParserInfo){lexerErr, t};
+    if (pass == 3 && operation[0] != 0) {
+      writeCall("Math", operation, 2);
+    }
+  }
+  pi.tk = t;
+  return pi;
 }
 
 // factor → ( - | ~ | ε ) operand
-ParserInfo factor()
-{
-	char operator[100] = {0};
-	ParserInfo pi = {0};
-	Token t = PeekNextToken();
-	if (t.ec)
-		return (ParserInfo){lexerErr, t};
-	if (t.tp == SYMBOL && !strcmp(t.lx, "-"))
-	{
-		t = GetNextToken();
-		if (t.ec)
-			return (ParserInfo){lexerErr, t};
-		strcpy(operator, "neg"); // eat the -
-	}
-	else if (t.tp == SYMBOL && !strcmp(t.lx, "~"))
-	{
-		t = GetNextToken();
-		if (t.ec)
-			return (ParserInfo){lexerErr, t};
-		// eat the ~
-		strcpy(operator, "not");
-	}
-	pi = operand();
-	if (pi.er != none)
-	{
-		return pi;
-	}
-	if (pass == 3 && operator[0] != 0)
-	{
-		writeArithmetic(operator);
-	}
-	pi.tk = t;
-	return pi;
+ParserInfo factor() {
+  char operator[100] = { 0 };
+  ParserInfo pi = {0};
+  Token t = PeekNextToken();
+  if (t.ec)
+    return (ParserInfo){lexerErr, t};
+  if (t.tp == SYMBOL && !strcmp(t.lx, "-")) {
+    t = GetNextToken();
+    if (t.ec)
+      return (ParserInfo){lexerErr, t};
+    strcpy(operator, "neg"); // eat the -
+  } else if (t.tp == SYMBOL && !strcmp(t.lx, "~")) {
+    t = GetNextToken();
+    if (t.ec)
+      return (ParserInfo){lexerErr, t};
+    // eat the ~
+    strcpy(operator, "not");
+  }
+  pi = operand();
+  if (pi.er != none) {
+    return pi;
+  }
+  if (pass == 3 && operator[0] != 0) {
+    writeArithmetic(operator);
+  }
+  pi.tk = t;
+  return pi;
 }
 
-// operand → integerConstant | identifier [.identifier ] [ [ expression ] ] | (expressionList) | stringLiteral | true | false | null | this
-ParserInfo operand()
-{
-	ParserInfo pi = {0};
-	int scopeLevel = -1;
-	char className[128];
-	int secondIdentifier = 0;
-	Symbol *symbol = NULL;
-	Symbol *secondSymbol = NULL;
-	Scope *scope = NULL;
-	Token token_1 = {0};
-	Token token_2 = {0};
-	Token t = PeekNextToken();
+// operand → integerConstant | identifier [.identifier ] [ [ expression ] |
+// (expressionList) ] | stringLiteral | true | false | null | this
+ParserInfo operand() {
+  ParserInfo pi = {0};
+  Token t = PeekNextToken();
+  Symbol *firstSymbol = NULL;
+  char className[128] = {0};
+  char identifier[128] = {0};
+  char methodName[128] = {0};
 
-	if (t.ec)
-		return (ParserInfo){lexerErr, t};
+  if (t.ec)
+    return (ParserInfo){lexerErr, t};
 
-	if (t.tp == INT)
-	{
-		t = GetNextToken();
-		if (t.ec)
-			return (ParserInfo){lexerErr, t};
-		if (pass == 3)
-		{
-			writePush("constant", atoi(t.lx));
-		}
-	}
-	else if (t.tp == ID)
-	{
-		t = token_1 = GetNextToken();
-		if (t.ec)
-			return (ParserInfo){lexerErr, t};
+  if (t.tp == INT) {
+    t = GetNextToken();
+    if (t.ec)
+      return (ParserInfo){lexerErr, t};
+    if (pass == 3) {
+      writePush("constant", atoi(t.lx));
+    }
 
-		if (pass >= 2)
-		{
-			if (manager->currentSubroutine != NULL)
-			{
-				if ((symbol = lookupSymbolInSubroutine(manager->currentSubroutine, t.lx)))
-				{
-					scopeLevel = 2;
-				}
-				else if ((symbol = lookupSymbolInClass(manager, manager->currentClass->name, t.lx)))
-				{
-					scopeLevel = 1;
-				}
-				else if ((scope = lookupClass(manager, t.lx)))
-				{
-					scopeLevel = 0;
-				}
-				else
-				{
-					pi.er = undecIdentifier;
-					pi.tk = t;
-					return pi;
-				}
-			}
-		}
+  } else if (t.tp == ID) {
+    t = GetNextToken();
+    if (t.ec)
+      return (ParserInfo){lexerErr, t};
 
-		// Check for .identifier (method call or static call)
-		t = PeekNextToken();
-		if (t.ec)
-			return (ParserInfo){lexerErr, t};
-		if (t.tp == SYMBOL && !strcmp(t.lx, "."))
-		{
-			secondIdentifier = 1;
-			t = GetNextToken();
-			if (t.ec)
-				return (ParserInfo){lexerErr, t};
-			t = token_2 = GetNextToken();
-			if (t.ec)
-				return (ParserInfo){lexerErr, t};
-			if (t.tp != ID)
-			{
-				pi.er = idExpected;
-				pi.tk = t;
-				return pi;
-			}
+    strcpy(identifier, t.lx);
 
-			if (pass >= 2)
-			{
-				switch (scopeLevel)
-				{
-				case 0: // Class.staticMethod()
-					secondSymbol = lookupSymbolInClass(manager, scope->name, t.lx);
-					if (!secondSymbol)
-					{
-						pi.er = undecIdentifier;
-						pi.tk = t;
-						return pi;
-					}
-					break;
-				case 1: // this.method()
-				case 2: // var.method()
-					secondSymbol = lookupSymbolInClass(manager, symbol->className, t.lx);
-					if (!secondSymbol)
-					{
-						pi.er = undecIdentifier;
-						pi.tk = t;
-						return pi;
-					}
-					break;
-				}
-			}
-		}
+    if (pass >= 2) {
+      char outKind[128] = {0};
+      firstSymbol = lookUpSymbol(manager, identifier,
+                                 manager->currentSubroutine->name, outKind);
+      if (strcmp(outKind, "invalid") == 0 ||
+          strcmp(outKind, "not_found") == 0) {
+        pi.er = undecIdentifier;
+        pi.tk = t;
+        return pi;
+      }
+      if (strcmp(outKind, "class") == 0) {
+        strcpy(className, t.lx);
+      }
+    }
 
-		// Check for array access [expression]
-		t = PeekNextToken();
-		if (t.ec)
-			return (ParserInfo){lexerErr, t};
-		if (t.tp == SYMBOL && !strcmp(t.lx, "["))
-		{
-			t = GetNextToken();
-			if (t.ec)
-				return (ParserInfo){lexerErr, t};
-			pi = expression();
-			if (pi.er != none)
-				return pi;
-			t = GetNextToken();
-			if (t.ec)
-				return (ParserInfo){lexerErr, t};
-			if (!(t.tp == SYMBOL && !strcmp(t.lx, "]")))
-			{
-				pi.er = closeBracketExpected;
-				pi.tk = t;
-				return pi;
-			}
-		}
+    t = PeekNextToken();
+    if (t.ec)
+      return (ParserInfo){lexerErr, t};
 
-		// Check for method/function call (expressionList)
-		t = PeekNextToken();
-		if (t.ec)
-			return (ParserInfo){lexerErr, t};
-		if (t.tp == SYMBOL && !strcmp(t.lx, "("))
-		{
-			if (pass == 3)
-			{
-				// Handle method calls (push object reference first)
-				if (scopeLevel == 1 || scopeLevel == 2)
-				{
-					// Push the object reference (this/var)
-					if (symbol->kind == KIND_LOCAL)
-					{
-						writePush("local", symbol->address);
-					}
-					else if (symbol->kind == KIND_ARGUMENT)
-					{
-						writePush("argument", symbol->address);
-					}
-					else if (symbol->kind == KIND_FIELD)
-					{
-						writePush("field", symbol->address);
-					}
-					else if (symbol->kind == KIND_STATIC)
-					{
-						writePush("static", symbol->address);
-					}
-				}
-			}
+    // Check for method or static call
+    if (t.tp == SYMBOL && !strcmp(t.lx, ".")) {
+      t = GetNextToken(); // consume '.'
+      if (t.ec)
+        return (ParserInfo){lexerErr, t};
+      t = GetNextToken(); // get method name
+      if (t.ec)
+        return (ParserInfo){lexerErr, t};
+      if (t.tp == ID) {
+        strcpy(methodName, t.lx);
+        char outKind[128] = {0};
+        Symbol *methodSymbol = NULL;
 
-			t = GetNextToken();
-			if (t.ec)
-				return (ParserInfo){lexerErr, t};
-			pi = expressionList();
-			if (pi.er != none)
-				return pi;
-			t = GetNextToken();
-			if (t.ec)
-				return (ParserInfo){lexerErr, t};
-			if (!(t.tp == SYMBOL && !strcmp(t.lx, ")")))
-			{
-				pi.er = closeParenExpected;
-				pi.tk = t;
-				return pi;
-			}
+        if (pass >= 2) {
+          if (strlen(className) > 0) {
+            // static call: className.methodName
+            if (!classExists(manager, className)) {
+              pi.er = undecIdentifier;
+              pi.tk = t;
+              return pi;
+            }
+          } else {
+            // method call: object.methodName
+            Class *curr = manager->currentClass;
+            setCurrentClass(manager, firstSymbol->type);
+            methodSymbol = lookUpSymbol(manager, methodName, NULL, outKind);
+            if (strcmp(outKind, "invalid") == 0 ||
+                strcmp(outKind, "not_found") == 0) {
+              pi.er = undecIdentifier;
+              pi.tk = t;
+              return pi;
+            }
+            setCurrentClass(manager, curr->name);
+          }
+        }
 
-			if (pass == 3)
-			{
-				if (secondIdentifier)
-				{
-					// Handle Class.method() or var.method()
-					Symbol *subroutineSymbol = NULL;
-					int argCount = 0;
+        // Peek for '(' to parse argument list
+        t = PeekNextToken();
+        if (t.ec)
+          return (ParserInfo){lexerErr, t};
+        if (t.tp == SYMBOL && !strcmp(t.lx, "(")) {
+          t = GetNextToken(); // consume '('
+          if (t.ec)
+            return (ParserInfo){lexerErr, t};
+          if (pass == 3 && strlen(className) == 0 && firstSymbol != NULL) {
+            writePush(firstSymbol->kind, firstSymbol->address);
+          }
 
-					if (scopeLevel == 0)
-					{
-						// Class.staticMethod()
-						subroutineSymbol = lookupSymbolInClass(manager, scope->name, token_2.lx);
-						if (!subroutineSymbol)
-						{
-							pi.er = undecIdentifier;
-							pi.tk = t;
-							return pi;
-						}
-						argCount = getSubroutineScope(manager, scope->name, token_2.lx)->argumentCount;
-						writeCall(scope->name, token_2.lx, argCount);
-					}
-					else
-					{
-						// var.method() or this.method()
-						subroutineSymbol = lookupSymbolInClass(manager, symbol->className, token_2.lx);
-						if (!subroutineSymbol)
-						{
-							pi.er = undecIdentifier;
-							pi.tk = t;
-							return pi;
-						}
+          ParserInfo pi = expressionList();
+          if (pi.er != none)
+            return pi;
 
-						argCount = getSubroutineScope(manager, symbol->className, token_2.lx)->argumentCount;
-						writeCall(symbol->className, token_2.lx, argCount);
-					}
+          t = GetNextToken(); // consume ')'
+          if (t.ec)
+            return (ParserInfo){lexerErr, t};
+          if (!(t.tp == SYMBOL && !strcmp(t.lx, ")"))) {
+            pi.er = closeParenExpected;
+            pi.tk = t;
+            return pi;
+          }
 
-					// Check if void return type by looking up the subroutine symbol
-					if (subroutineSymbol->type == TYPE_VOID)
-					{
-						writePop("temp", 0);
-					}
-				}
-				else
-				{
-					// Handle method() calls (within same class)
-					Symbol *subroutineSymbol = lookupSymbolInClass(manager, manager->currentClass->name, token_1.lx);
-					if (!subroutineSymbol)
-					{
-						pi.er = undecIdentifier;
-						pi.tk = t;
-						return pi;
-					}
+          if (pass == 3) {
+            int nArgs = 0;
 
-					// Push this pointer for non-static methods (KIND_METHOD)
-					if (subroutineSymbol->kind == KIND_METHOD)
-					{
-						writePush("pointer", 0); // push this
-					}
+            if (strlen(methodName) > 0) {
+              if (strlen(className) > 0) {
+                nArgs = getSubroutineArgCount(manager, className, methodName);
+                Subroutine *subroutine =
+                    getSubroutine(manager, className, methodName);
+                int nArgs = subroutine->argumentCount;
+                writeCall(className, methodName, nArgs);
+                if (strcmp(subroutine->returnType, "void") == 0) {
+                  writePop("temp", 0);
+                }
+              } else if (firstSymbol != NULL) {
+                Subroutine *subroutine =
+                    getSubroutine(manager, firstSymbol->type, methodName);
+                int nArgs = subroutine->argumentCount;
+                writeCall(firstSymbol->type, methodName, nArgs);
+                if (strcmp(subroutine->returnType, "void") == 0) {
+                  writePop("temp", 0);
+                }
+              } else {
+                Subroutine *subroutine = getSubroutine(
+                    manager, manager->currentClass->name, methodName);
+                int nArgs = subroutine->argumentCount;
+                writeCall(manager->currentClass->name, methodName, nArgs);
+                if (strcmp(subroutine->returnType, "void") == 0) {
+                  writePop("temp", 0);
+                }
+              }
+            }
+          }
 
-					int argCount = getSubroutineScope(manager, manager->currentClass->name, token_1.lx)->argumentCount;
-					// Add 1 to argCount if it's a method (for this pointer)
-					if (subroutineSymbol->kind == KIND_METHOD)
-					{
-						argCount++;
-					}
-					writeCall(manager->currentClass->name, token_1.lx, argCount);
+          return pi;
+        }
+      } else {
+        pi.er = idExpected;
+        pi.tk = t;
+        return pi;
+      }
+    }
 
-					if (subroutineSymbol->type == TYPE_VOID)
-					{
-						writePop("temp", 0);
-					}
-				}
-			}
-		}
-		else if (pass == 3)
-		{
-			// Simple variable reference (push its value)
-			if (symbol)
-			{
-				if (symbol->kind == KIND_LOCAL)
-				{
-					writePush("local", symbol->address);
-				}
-				else if (symbol->kind == KIND_ARGUMENT)
-				{
-					writePush("argument", symbol->address);
-				}
-				else if (symbol->kind == KIND_FIELD)
-				{
-					writePush("field", symbol->address);
-				}
-				else if (symbol->kind == KIND_STATIC)
-				{
-					writePush("static", symbol->address);
-				}
-			}
-		}
-	}
-	else if (t.tp == SYMBOL && !strcmp(t.lx, "("))
-	{
-		t = GetNextToken();
-		if (t.ec)
-			return (ParserInfo){lexerErr, t};
-		pi = expression();
-		if (pi.er != none)
-			return pi;
-		t = GetNextToken();
-		if (t.ec)
-			return (ParserInfo){lexerErr, t};
-		if (!(t.tp == SYMBOL && !strcmp(t.lx, ")")))
-		{
-			pi.er = closeParenExpected;
-			pi.tk = t;
-			return pi;
-		}
-	}
-	else if (t.tp == STRING)
-	{
-		t = GetNextToken();
-		if (t.ec)
-			return (ParserInfo){lexerErr, t};
-		int strLength = strlen(t.lx);
-		writePush("constant", strLength);
-		writeCall("String", "new", 1);
-		for (int i = 0; i < strLength; i++)
-		{
-			writePush("constant", t.lx[i]);
-			writeCall("String", "appendChar", 2);
-		}
-	}
-	else if (t.tp == RESWORD)
-	{
-		if (!strcmp(t.lx, "true"))
-		{
-			t = GetNextToken();
-			if (t.ec)
-				return (ParserInfo){lexerErr, t};
-			writePush("constant", 1);
-			writeArithmetic("neg");
-		}
-		else if (!strcmp(t.lx, "false") || !strcmp(t.lx, "null"))
-		{
-			t = GetNextToken();
-			if (t.ec)
-				return (ParserInfo){lexerErr, t};
-			writePush("constant", 0);
-		}
-		else if (!strcmp(t.lx, "this"))
-		{
-			t = GetNextToken();
-			if (t.ec)
-				return (ParserInfo){lexerErr, t};
-			writePush("pointer", 0);
-		}
-	}
-	else
-	{
-		pi.er = syntaxError;
-		pi.tk = t;
-		return pi;
-	}
+    // Check for array access
+    t = PeekNextToken();
+    if (t.ec)
+      return (ParserInfo){lexerErr, t};
+    if (t.tp == SYMBOL && !strcmp(t.lx, "[")) {
+      t = GetNextToken(); // consume '['
+      if (t.ec)
+        return (ParserInfo){lexerErr, t};
+      pi = expression();
+      if (pi.er != none)
+        return pi;
 
-	pi.tk = t;
-	return pi;
-}
-int InitParser(char *file_name)
-{
-	return InitLexer(file_name);
+      t = GetNextToken(); // consume ']'
+      if (t.ec)
+        return (ParserInfo){lexerErr, t};
+      if (!(t.tp == SYMBOL && !strcmp(t.lx, "]"))) {
+        pi.er = closeBracketExpected;
+        pi.tk = t;
+        return pi;
+      }
+
+      if (pass == 3) {
+
+        writePush(firstSymbol->kind, firstSymbol->address);
+
+        writeArithmetic("add");
+        writePop("pointer", 1);
+        writePush("that", 0);
+      }
+      return pi;
+    }
+
+    // Check for standalone variable (not array or method call)
+    if (pass == 3 && firstSymbol) {
+      writePush(firstSymbol->kind, firstSymbol->address);
+    }
+
+  } else if (t.tp == SYMBOL && !strcmp(t.lx, "(")) {
+    t = GetNextToken();
+    if (t.ec)
+      return (ParserInfo){lexerErr, t};
+    pi = expression();
+    if (pi.er != none)
+      return pi;
+    t = GetNextToken();
+    if (t.ec)
+      return (ParserInfo){lexerErr, t};
+    if (!(t.tp == SYMBOL && !strcmp(t.lx, ")"))) {
+      pi.er = closeParenExpected;
+      pi.tk = t;
+      return pi;
+    }
+
+  } else if (t.tp == STRING) {
+    t = GetNextToken();
+    if (t.ec)
+      return (ParserInfo){lexerErr, t};
+    int strLength = strlen(t.lx);
+    writePush("constant", strLength);
+    writeCall("String", "new", 1);
+    for (int i = 0; i < strLength; i++) {
+      writePush("constant", t.lx[i]);
+      writeCall("String", "appendChar", 2);
+    }
+
+  } else if (t.tp == RESWORD) {
+    if (!strcmp(t.lx, "true")) {
+      t = GetNextToken();
+      if (t.ec)
+        return (ParserInfo){lexerErr, t};
+      writePush("constant", 0);
+      writeArithmetic("not");
+    } else if (!strcmp(t.lx, "false") || !strcmp(t.lx, "null")) {
+      t = GetNextToken();
+      if (t.ec)
+        return (ParserInfo){lexerErr, t};
+      writePush("constant", 0);
+    } else if (!strcmp(t.lx, "this")) {
+      t = GetNextToken();
+      if (t.ec)
+        return (ParserInfo){lexerErr, t};
+      writePush("pointer", 0);
+    }
+  } else {
+    pi.er = syntaxError;
+    pi.tk = t;
+    return pi;
+  }
+
+  pi.tk = t;
+  return pi;
 }
 
-ParserInfo Parse()
-{
-	ParserInfo pi = {0};
-	pi = classDeclar();
+int InitParser(char *file_name) { return InitLexer(file_name); }
 
-	return pi;
+ParserInfo Parse() {
+  ParserInfo pi = {0};
+  pi = classDeclar();
+
+  return pi;
 }
 
-int StopParser()
-{
-	return StopLexer();
-}
+int StopParser() { return StopLexer(); }
 
 // #ifndef TEST_PARSER
 // int main()

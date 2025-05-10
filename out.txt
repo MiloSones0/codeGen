@@ -1,0 +1,128 @@
+	$$$ Checking your compiler, behold $$$
+	=========================================
+Started ...
+
+Testing your compiler on various JACK programs (2 marks each)
+Running your compiler on program Seven 
+making file Seven/Main.vm
+Checking file Main.vm
+*** PASSED *** 
+Running your compiler on program Fraction 
+making file Fraction/Fraction.vm
+making file Fraction/Main.vm
+Checking file Fraction.vm
+*** PASSED *** 
+Checking file Main.vm
+Error in code file
+Expecting call in line 15
+Found push in line 15 instead
+Sorry, -2 marks
+*** PASSED *** 
+Running your compiler on program HelloWorld 
+making file HelloWorld/Main.vm
+Checking file Main.vm
+*** PASSED *** 
+Running your compiler on program Square 
+making file Square/Square.vm
+making file Square/Main.vm
+making file Square/SquareGame.vm
+Checking file Main.vm
+Error in code file
+Expecting call in line 5
+Found push in line 5 instead
+Sorry, -2 marks
+*** PASSED *** 
+Checking file SquareGame.vm
+Error in code file
+Expecting call in line 18
+Found push in line 18 instead
+Sorry, -2 marks
+*** PASSED *** 
+Checking file Square.vm
+Error in code file
+Expecting 0 in line 27
+Found 1 in line 27 instead
+Sorry, -2 marks
+*** PASSED *** 
+Running your compiler on program Average 
+making file Average/Main.vm
+Checking file Main.vm
+Error in code file
+Expecting 2 in line 53
+Found 0 in line 53 instead
+Sorry, -2 marks
+*** PASSED *** 
+Running your compiler on program ArrayTest 
+making file ArrayTest/Main.vm
+Checking file Main.vm
+Error in code file
+Expecting 2 in line 53
+Found 0 in line 53 instead
+Sorry, -2 marks
+*** PASSED *** 
+Running your compiler on program MathTest 
+making file MathTest/Main.vm
+Checking file Main.vm
+Error in code file
+Expecting constant in line 4
+Found local in line 4 instead
+Sorry, -2 marks
+*** PASSED *** 
+Running your compiler on program List 
+making file List/Main.vm
+making file List/List.vm
+Checking file List.vm
+Error in code file
+Expecting call in line 58
+Found push in line 58 instead
+Sorry, -2 marks
+*** PASSED *** 
+Checking file Main.vm
+Error in code file
+Expecting call in line 13
+Found push in line 13 instead
+Sorry, -2 marks
+*** PASSED *** 
+Running your compiler on program ConvertToBin 
+making file ConvertToBin/Main.vm
+Checking file Main.vm
+Error in code file
+Expecting 0 in line 17
+Found 1 in line 17 instead
+Sorry, -2 marks
+*** PASSED *** 
+Running your compiler on program Pong 
+making file Pong/Bat.vm
+making file Pong/PongGame.vm
+making file Pong/Main.vm
+making file Pong/Ball.vm
+Checking file Ball.vm
+Error in code file
+Expecting 0 in line 39
+Found 1 in line 39 instead
+Sorry, -2 marks
+*** PASSED *** 
+Checking file Bat.vm
+Error in code file
+Expecting 0 in line 31
+Found 1 in line 31 instead
+Sorry, -2 marks
+*** PASSED *** 
+Checking file Main.vm
+Error in code file
+Expecting call in line 7
+Found push in line 7 instead
+Sorry, -2 marks
+*** PASSED *** 
+Checking file PongGame.vm
+Error in code file
+Expecting constant in line 24
+Found this in line 24 instead
+Sorry, -2 marks
+*** PASSED *** 
+
+---------------------------------------------------
+		Total mark = 0/20
+---------------------------------------------------
+
+Finished
