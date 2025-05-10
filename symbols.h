@@ -34,7 +34,7 @@ struct Class {
 
 struct Subroutine {
     char name[128];
-    char[128] subroutineType[128];
+    char subroutineType[128];
     char returnType[128];
 
     Symbol arguments[128];
@@ -80,6 +80,6 @@ int insertClassSymbol(
     const char* kind,
 )
 
-Symbol *lookUpSymbol(const char *name);
+Symbol *lookUpSymbol(const char *name, const char *subroutineName);
 
 #endif // SYMBOLS_H
