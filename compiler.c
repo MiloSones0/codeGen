@@ -73,9 +73,7 @@ ParserInfo compile(char *dir_name) {
           return p;
         }
         StopParser();
-        if (pass == 3) {
-          close();
-        }
+
       }
     }
     rewinddir(dp);
@@ -86,6 +84,7 @@ ParserInfo compile(char *dir_name) {
   return p;
 }
 int StopCompiler() { 
+  close();
   return 1; 
 }
 
