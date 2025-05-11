@@ -72,7 +72,10 @@ ParserInfo compile(char *dir_name) {
         if (p.er != none) {
           return p;
         }
-
+        StopParser();
+        if (pass == 3) {
+          close();
+        }
       }
     }
     rewinddir(dp);

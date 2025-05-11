@@ -729,13 +729,14 @@ ParserInfo letStatement() {
     if (t.ec)
       return (ParserInfo){lexerErr, t};
 
-    if (pass == 3) {
+
+
+    pi = expression();
+        if (pass == 3) {
       // printf("outkind: %s\n", outKind);
       // printf("symbol kind: %s addr: %d\n", symbol->kind, symbol->address);
       writePush(symbol->kind, symbol->address);
     }
-
-    pi = expression();
     if (pi.er != none)
       return pi;
 
@@ -1355,12 +1356,13 @@ ParserInfo ArithmeticExpression() {
     if (pi.er != none) {
       return pi;
     }
-    t = PeekNextToken();
-    if (t.ec)
-      return (ParserInfo){lexerErr, t};
     if (pass == 3 && operator[0] != 0) {
       writeArithmetic(operator);
     }
+    t = PeekNextToken();
+    if (t.ec)
+      return (ParserInfo){lexerErr, t};
+
   }
   pi.tk = t;
   return pi;
