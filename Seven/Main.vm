@@ -8,3 +8,21 @@ call Output.printInt 1
 pop temp 0
 push constant 0
 return
+push pointer 0
+push pointer 0
+push constant 1
+call String.new 1
+push constant 47
+call String.appendChar 2
+push pointer 0
+push pointer 0
+push constant 1
+call String.new 1
+push constant 47
+call String.appendChar 2
+push pointer 0
+push pointer 0
+push constant 1
+call String.new 1
+push constant 47
+call String.appendChar 2

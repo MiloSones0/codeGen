@@ -31,3 +31,69 @@ call Output.println 0
 pop temp 0
 push constant 0
 return
+push pointer 0
+push pointer 0
+push constant 0
+not
+push constant 0
+push constant 0
+push constant 0
+not
+push constant 0
+push constant 0
+not
+push constant 0
+push constant 0
+not
+push constant 0
+push constant 0
+not
+push pointer 0
+push pointer 0
+push constant 0
+push constant 0
+not
+push pointer 0
+push pointer 0
+push constant 0
+not
+push constant 0
+push constant 0
+push constant 0
+not
+push constant 0
+push constant 0
+not
+push constant 0
+push constant 0
+not
+push constant 0
+push constant 0
+not
+push pointer 0
+push pointer 0
+push constant 0
+push constant 0
+not
+push pointer 0
+push pointer 0
+push constant 0
+not
+push constant 0
+push constant 0
+push constant 0
+not
+push constant 0
+push constant 0
+not
+push constant 0
+push constant 0
+not
+push constant 0
+push constant 0
+not
+push pointer 0
+push pointer 0
+push constant 0
+push constant 0
+not

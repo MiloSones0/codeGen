@@ -306,7 +306,7 @@ int StopLexer()
 	fclose(f);
 	return 0;
 }
-
+// 
 // do not remove the next line
 // #ifndef TEST
 // int main()

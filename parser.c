@@ -798,7 +798,7 @@ ParserInfo letStatement() {
 ParserInfo ifStatement() {
   ParserInfo pi = {0};
   Token t = GetNextToken();
-  static int ifLabelCounter = 0;
+  int ifLabelCounter = 0;
 
   if (t.ec)
     return (ParserInfo){lexerErr, t};
@@ -946,7 +946,7 @@ ParserInfo ifStatement() {
 
 // whileStatement → while ( expression ) { {statement} }
 ParserInfo whileStatement() {
-  static int whileLabelCount = 0; // static counter for uniqueness
+  int whileLabelCount = 0; // static counter for uniqueness
   int labelIndex = whileLabelCount++;
   char whileExpLabel[64], whileEndLabel[64];
   snprintf(whileExpLabel, sizeof(whileExpLabel), "WHILE_EXP%d", labelIndex);
@@ -1080,7 +1080,6 @@ ParserInfo subroutineCall() {
   char className[128] = {0};
   char subroutineName[128] = {0};
   char outKind[128] = {0};
-  int pushedThis = 0;
 
   if (t.ec)
     return (ParserInfo){lexerErr, t};
@@ -1104,7 +1103,6 @@ ParserInfo subroutineCall() {
     if (pass == 3 && firstSymbol && strcmp(outKind, "class") != 0) {
       // It's an object method call — push object
       writePush(firstSymbol->kind, firstSymbol->address);
-      pushedThis = 1;
     }
 
     GetNextToken();     // consume '.'
@@ -1119,7 +1117,6 @@ ParserInfo subroutineCall() {
     strcpy(subroutineName, t.lx);
     if (pass == 3) {
       writePush("pointer", 0); // push this
-      pushedThis = 1;
     }
     strcpy(className, manager->currentClass->name);
   }
@@ -1149,8 +1146,6 @@ ParserInfo subroutineCall() {
   if (pass == 3) {
     Subroutine *subroutine = getSubroutine(manager, className, subroutineName);
     int totalArgs = subroutine->argumentCount;
-    // if (pushedThis)
-    //   totalArgs++;
     writeCall(className, subroutineName, totalArgs);
 
     if (strcmp(subroutine->returnType, "void") == 0) {
@@ -1495,7 +1490,6 @@ ParserInfo operand() {
       if (t.tp == ID) {
         strcpy(methodName, t.lx);
         char outKind[128] = {0};
-        Symbol *methodSymbol = NULL;
 
         if (pass >= 2) {
           if (strlen(className) > 0) {
@@ -1509,7 +1503,7 @@ ParserInfo operand() {
             // method call: object.methodName
             Class *curr = manager->currentClass;
             setCurrentClass(manager, firstSymbol->type);
-            methodSymbol = lookUpSymbol(manager, methodName, NULL, outKind);
+            lookUpSymbol(manager, methodName, NULL, outKind);
             if (strcmp(outKind, "invalid") == 0 ||
                 strcmp(outKind, "not_found") == 0) {
               pi.er = undecIdentifier;
@@ -1546,11 +1540,9 @@ ParserInfo operand() {
           }
 
           if (pass == 3) {
-            int nArgs = 0;
 
             if (strlen(methodName) > 0) {
               if (strlen(className) > 0) {
-                nArgs = getSubroutineArgCount(manager, className, methodName);
                 Subroutine *subroutine =
                     getSubroutine(manager, className, methodName);
                 int nArgs = subroutine->argumentCount;

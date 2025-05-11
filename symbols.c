@@ -1,10 +1,12 @@
+
+#include "symbols.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 
 
 
-#include "symbols.h"
+
 
 ClassManager *initClassManager() {
   ClassManager *manager = (ClassManager *)malloc(sizeof(ClassManager));

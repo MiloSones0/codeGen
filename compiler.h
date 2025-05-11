@@ -5,9 +5,9 @@
 
 #define TEST_COMPILER // uncomment to run the compiler autograder
 
-#include "symbols.h"
-#include "parser.h"
 
+#include "parser.h"
+#include "symbols.h"
 
 int InitCompiler();
 ParserInfo compile(char *dir_name);
